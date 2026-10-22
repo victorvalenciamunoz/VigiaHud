@@ -1,28 +1,68 @@
+using VigiaHud.App.Watch;
 using VigiaHud.Core.Logging;
 
 namespace VigiaHud.App;
 
 /// <summary>
 /// The one screen of phase 1: whether the watch is running, the button to start or stop it, and the tail of the
-/// log so the phone can be checked without a computer. Layout only: every rule lives in Core.
+/// log so the phone can be checked without a computer. Layout only: the service is the platform's, and every
+/// rule lives in Core.
 /// </summary>
 public partial class WatchPage : ContentPage
 {
     private const int TailLength = 8;
 
     private readonly RotatingFileLogOptions _logOptions;
+    private readonly IWatchController _watch;
 
-    public WatchPage(RotatingFileLogOptions logOptions)
+    public WatchPage(RotatingFileLogOptions logOptions, IWatchController watch)
     {
         _logOptions = logOptions;
+        _watch = watch;
         InitializeComponent();
         Version.Text = $"v{AppInfo.Current.VersionString}";
+        _watch.RunningChanged += (_, _) => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ShowWatchState();
+            ShowLogTail();
+        });
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        ShowWatchState();
         ShowLogTail();
+    }
+
+    private async void OnToggleClicked(object? sender, EventArgs e)
+    {
+        if (_watch.IsRunning)
+        {
+            _watch.Stop();
+            return;
+        }
+
+        // Android 13+ needs leave to show the permanent notification; on this phone (Android 10) it is granted by default.
+        var notifications = await Permissions.RequestAsync<Permissions.PostNotifications>();
+        if (notifications != PermissionStatus.Granted)
+        {
+            Detail.Text = "Sin permiso de notificaciones Android cerraría el servicio. Concédelo en Ajustes.";
+            return;
+        }
+
+        _watch.Start();
+    }
+
+    private void ShowWatchState()
+    {
+        var running = _watch.IsRunning;
+        Status.Text = running ? "Vigilando." : "Parada.";
+        Status.TextColor = (Color)Application.Current!.Resources[running ? "HudGood" : "HudTextMuted"];
+        Detail.Text = running
+            ? "El servicio sigue con la pantalla apagada. Puedes salir de la app."
+            : "Pulsa INICIAR para dejar el servicio vigilando con la pantalla apagada.";
+        Toggle.Text = running ? "PARAR" : "INICIAR";
     }
 
     private void OnRefreshLogClicked(object? sender, EventArgs e) => ShowLogTail();

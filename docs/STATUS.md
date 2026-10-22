@@ -53,7 +53,29 @@
   veces, el fichero contiene dos líneas `start` con instante UTC correcto (hora local 17:03, UTC 15:03), y el panel
   REGISTRO las muestra en hora local: `docs/verificacion/2026-10-22-fase1-paso2-registro.png`.
 
+### Paso 3 — Servicio en primer plano (2026-10-22)
+
+- `Platforms/Android/Watch/WatchService` (DECISIONS 007): foreground service con notificación permanente
+  ("VigíaHud · Vigilando.", canal "Vigilancia" de importancia baja, icono de ojo en la barra de estado),
+  `PARTIAL_WAKE_LOCK` mientras corre, `START_STICKY`, nombre Java fijo. En Android 10 se promociona sin tipo;
+  en 11+ con el tipo `camera`. Registra `start` ("service started" o "service restarted by Android"), `stop`
+  ("service stop requested", "service destroyed"), `error` (fallo al arrancar) e `info` (app quitada de recientes).
+- `IWatchController` en la app, con `AndroidWatchController` (intents con acción START/STOP). `WatchPage` conecta el
+  botón INICIAR/PARAR, muestra "Vigilando." en verde o "Parada." y refresca el registro al cambiar el estado.
+  En Android 13+ pide el permiso de notificaciones antes de arrancar; en el OPPO no hace falta.
+- Manifiesto: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CAMERA`, `WAKE_LOCK`, `CAMERA`, `POST_NOTIFICATIONS`
+  y `uses-feature camera`.
+- Validado en el OPPO con `adb`: tras pulsar INICIAR, `dumpsys activity services` muestra `WatchService` con
+  `isForeground=true` y la notificación del canal `watch`; `dumpsys power` muestra `PARTIAL_WAKE_LOCK
+  'VigiaHud::WatchService'`; el registro tiene `service started`. Tras PARAR desaparecen el servicio y el wake lock y
+  el registro tiene `service stop requested` y `service destroyed`. `dotnet build` 0 avisos, `dotnet test` 26 tests.
+  Captura: `docs/verificacion/2026-10-22-fase1-paso3-servicio.png`.
+- Prueba corta de supervivencia: servicio arrancado a las 15:27:42 UTC, pantalla apagada (`mWakefulness=Asleep`)
+  y comprobado a las 15:34:10 UTC: mismo proceso (pid 18347), `isForeground=true`, wake lock sostenido 6 min 28 s,
+  sin reinicios en el registro. El juez de 24 h llega en el paso 6, con las capturas.
+
 ## Siguiente
 
-- Paso 3: pantalla con Iniciar/Parar conectada a un servicio en primer plano con notificación permanente y wake lock,
-  con `start`/`stop`/`error` en el registro; comprobar en el OPPO con `dumpsys activity services`.
+- Paso 4: captura periódica con Camera2 a baja resolución cada 2 s dentro del servicio, con un planificador en Core;
+  línea `capture` por minuto con el número de frames y `heartbeat` cada 10 min con batería y temperatura;
+  una imagen guardada cada 10 min para depurar.

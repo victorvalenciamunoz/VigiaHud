@@ -72,3 +72,20 @@ Formato: contexto → decisión → alternativas descartadas.
   Los tipos son fijos: `start`, `stop`, `error`, `capture`, `heartbeat`, `alert`, `info`.
 - Alternativas: `Microsoft.Extensions.Logging` con un proveedor de fichero (Serilog, NLog…): un paquete más en un
   móvil viejo y un formato pensado para humanos, no para un script; `Console`/`Debug` (descartado: no persiste).
+
+## 007 — El servicio de vigilancia: primer plano, wake lock parcial, sticky, sin tipo en Android 10
+- Contexto: la vigilancia tiene que seguir viva con la pantalla apagada durante días en un OPPO con Android 10
+  (DECISIONS 003). Verificado en la documentación oficial de Android el 2026-10-22.
+- Decisión: `WatchService` (nombre Java fijo `com.vigiahud.app.WatchService`) es un foreground service con
+  notificación permanente en un canal de importancia baja ("Vigilancia", icono de ojo), `PARTIAL_WAKE_LOCK` sin
+  tiempo límite mientras corre (liberado en `OnDestroy`) y `START_STICKY` para que Android lo reinicie si lo mata;
+  `stopWithTask` en falso para que deslizar la app en recientes no lo pare (queda en el registro como `info`).
+  En el manifiesto va `foregroundServiceType="camera"` con los permisos `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_CAMERA`, `WAKE_LOCK`, `CAMERA` y `POST_NOTIFICATIONS`; en el código el tipo `camera` solo se
+  pasa a `StartForeground` en Android 11+ (`OperatingSystem.IsAndroidVersionAtLeast(30)`), porque en API 29 no
+  existe. Arranque y parada por intents con acción desde la página (`StartForegroundService`), siempre con la app
+  visible, que es lo que exige Android 12+. Cada arranque, parada, reinicio por Android y fallo deja una línea en el
+  registro (DECISIONS 006).
+- Alternativas: `WorkManager`/`JobScheduler` (descartado: no garantizan continuidad ni acceso a la cámara);
+  wake lock con tiempo límite renovado (descartado por ahora: un olvido lo apaga; se revisará si la batería o el
+  juez lo piden); pantalla encendida en negro (plan B de `PLAN.md`, solo si el juez de 24 h falla).
