@@ -1,6 +1,15 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.INTERNET" />
+	<!-- The watch service (phase 1, step 3): a foreground service that keeps the CPU awake with the screen off.
+	     FOREGROUND_SERVICE_CAMERA and the camera type are for Android 14+; on this phone (Android 10) they are inert (DECISIONS 003). -->
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+	<uses-permission android:name="android.permission.WAKE_LOCK" />
+	<uses-permission android:name="android.permission.CAMERA" />
+	<!-- The permanent notification needs this on Android 13+. -->
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<uses-feature android:name="android.hardware.camera" android:required="true" />
 </manifest>

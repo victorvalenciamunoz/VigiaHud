@@ -47,15 +47,15 @@
                    TextColor="{DynamicResource HudTextMuted}" VerticalOptions="Center" />
         </Grid>
 
-        <!-- The watch: is it running, and the button to start or stop it (wired in step 3). -->
+        <!-- The watch: is it running, and the button to start or stop it. The service is the platform's; the page only asks. -->
         <Border Grid.Row="1" Style="{StaticResource Panel}">
             <VerticalStackLayout Spacing="8">
                 <Label Text="VIGILANCIA" Style="{StaticResource PanelTitle}" />
                 <Label x:Name="Status" Text="Parada." FontFamily="ChakraPetchBold" FontSize="20" CharacterSpacing="1"
                        TextColor="{DynamicResource HudTextMuted}" />
-                <Label x:Name="Detail" Text="El servicio de captura llega en el paso 3 de la fase 1."
+                <Label x:Name="Detail" Text="Pulsa INICIAR para dejar el servicio vigilando con la pantalla apagada."
                        FontFamily="OpenSansRegular" FontSize="12" TextColor="{DynamicResource HudTextMuted}" />
-                <Button x:Name="Toggle" Text="INICIAR" Style="{StaticResource Chip}" IsEnabled="False"
+                <Button x:Name="Toggle" Text="INICIAR" Style="{StaticResource Chip}" Clicked="OnToggleClicked"
                         HorizontalOptions="Start" Margin="0,6,0,0" />
             </VerticalStackLayout>
         </Border>

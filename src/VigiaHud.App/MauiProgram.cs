@@ -25,6 +25,11 @@ public static class MauiProgram
         builder.Services.AddSingleton<IWatchLog>(sp =>
             new RotatingFileLog(sp.GetRequiredService<RotatingFileLogOptions>(), sp.GetRequiredService<TimeProvider>()));
 
+        // The watch itself: a foreground service on Android (step 3).
+#if ANDROID
+        builder.Services.AddSingleton<Watch.IWatchController, Platforms.Android.Watch.AndroidWatchController>();
+#endif
+
         builder.Services.AddTransient<WatchPage>();
 
 #if DEBUG
