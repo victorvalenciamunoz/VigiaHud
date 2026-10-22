@@ -60,3 +60,15 @@ Formato: contexto → decisión → alternativas descartadas.
     comentarios XML en inglés que explican el porqué; tests con nombres `Hace_tal_cosa` en snake case y `Theory` con
     `InlineData`; interfaces para todo lo de plataforma con implementaciones falsas en tests.
 - Alternativas: plantilla MAUI por defecto (descartado: estética y estructura distintas a las de la familia).
+
+## 006 — Registro propio en fichero, una línea por entrada, rotación por tamaño
+- Contexto: el registro es el juez de la fase 1 (uptime medido) y tiene que sobrevivir a que Android mate el proceso
+  sin avisar. Lo leerán un script del juez (huecos entre capturas) y la propia app (últimas líneas en pantalla).
+- Decisión: `VigiaHud.Core.Logging` sin paquetes: `RotatingFileLog` escribe una línea por entrada
+  (`instante UTC con milisegundos` TAB `tipo` TAB `mensaje`, tabuladores y saltos de línea escapados), abre el fichero
+  en cada escritura y hace `flush` a disco (sin handle abierto que perder), rota por tamaño (1 MB) y guarda 5 ficheros
+  (`vigia.log`, `vigia.1.log`…). Un fallo al escribir se traga: el registro nunca tumba la vigilancia.
+  `LogReader` lee los ficheros rotados en orden y salta líneas rotas. Reloj inyectado (`TimeProvider`).
+  Los tipos son fijos: `start`, `stop`, `error`, `capture`, `heartbeat`, `alert`, `info`.
+- Alternativas: `Microsoft.Extensions.Logging` con un proveedor de fichero (Serilog, NLog…): un paquete más en un
+  móvil viejo y un formato pensado para humanos, no para un script; `Console`/`Debug` (descartado: no persiste).

@@ -17,9 +17,27 @@
             <Setter Property="TextColor" Value="{DynamicResource HudGuide}" />
             <Setter Property="BorderColor" Value="{DynamicResource HudGuide}" />
         </Style>
+        <Style x:Key="Panel" TargetType="Border">
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource HudBackground}" />
+            <Setter Property="Stroke" Value="{DynamicResource HudTextDim}" />
+            <Setter Property="StrokeShape">
+                <Setter.Value>
+                    <RoundRectangle CornerRadius="8" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PanelTitle" TargetType="Label">
+            <Setter Property="FontFamily" Value="ChakraPetchBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CharacterSpacing" Value="1" />
+            <Setter Property="TextColor" Value="{DynamicResource HudTextSoft}" />
+            <Setter Property="VerticalOptions" Value="Center" />
+        </Style>
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*" Padding="16,44,16,16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,*" Padding="16,44,16,16" RowSpacing="12">
 
         <!-- Header in the family's look: the name, and the version. -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
@@ -29,21 +47,27 @@
                    TextColor="{DynamicResource HudTextMuted}" VerticalOptions="Center" />
         </Grid>
 
-        <!-- The one screen of phase 1: is the watch running, and the button to start or stop it (wired in step 3). -->
-        <Border Grid.Row="1" VerticalOptions="Start" Padding="14,12" StrokeThickness="1"
-                BackgroundColor="{DynamicResource HudBackground}" Stroke="{DynamicResource HudTextDim}">
-            <Border.StrokeShape>
-                <RoundRectangle CornerRadius="8" />
-            </Border.StrokeShape>
+        <!-- The watch: is it running, and the button to start or stop it (wired in step 3). -->
+        <Border Grid.Row="1" Style="{StaticResource Panel}">
             <VerticalStackLayout Spacing="8">
-                <Label Text="VIGILANCIA" FontFamily="ChakraPetchBold" FontSize="12" CharacterSpacing="1"
-                       TextColor="{DynamicResource HudTextSoft}" />
+                <Label Text="VIGILANCIA" Style="{StaticResource PanelTitle}" />
                 <Label x:Name="Status" Text="Parada." FontFamily="ChakraPetchBold" FontSize="20" CharacterSpacing="1"
                        TextColor="{DynamicResource HudTextMuted}" />
                 <Label x:Name="Detail" Text="El servicio de captura llega en el paso 3 de la fase 1."
                        FontFamily="OpenSansRegular" FontSize="12" TextColor="{DynamicResource HudTextMuted}" />
                 <Button x:Name="Toggle" Text="INICIAR" Style="{StaticResource Chip}" IsEnabled="False"
                         HorizontalOptions="Start" Margin="0,6,0,0" />
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- The tail of the log (DECISIONS 006): the judge, readable on the phone itself. Errors in red. -->
+        <Border Grid.Row="2" Style="{StaticResource Panel}" VerticalOptions="Start">
+            <VerticalStackLayout Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Label Text="REGISTRO" Style="{StaticResource PanelTitle}" />
+                    <Button Grid.Column="1" Text="ACTUALIZAR" Style="{StaticResource Chip}" Clicked="OnRefreshLogClicked" />
+                </Grid>
+                <VerticalStackLayout x:Name="LogLines" Spacing="3" />
             </VerticalStackLayout>
         </Border>
     </Grid>
