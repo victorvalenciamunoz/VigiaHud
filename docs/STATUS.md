@@ -74,8 +74,33 @@
   y comprobado a las 15:34:10 UTC: mismo proceso (pid 18347), `isForeground=true`, wake lock sostenido 6 min 28 s,
   sin reinicios en el registro. El juez de 24 h llega en el paso 6, con las capturas.
 
+### Paso 4 — Captura periódica (2026-10-22)
+
+- Core: `Watch/WatchTimings` (frame cada 2 s, línea `capture` cada minuto, `heartbeat` y foto de depuración cada
+  10 min), `Watch/WatchReporter` (cuenta frames y fallos y decide cuándo toca cada cosa; la primera foto, al primer
+  frame; si el móvil se retrasa, cada acción se dispara una vez y la siguiente se programa desde ahora),
+  `Watch/WatchMessages` (`frames=30 failed=0 period=60s`; `uptime=1h02m battery=97% plugged=yes temp=33.5C`,
+  cultura invariante), `Watch/SnapshotStore` (JPEG nombrados por instante UTC, máximo 200) y
+  `Device/DeviceStatus` + `IDeviceStatusSource` (batería, cargador, temperatura).
+- App: `CameraCapturer` (DECISIONS 008: Camera2, flujo YUV 320x240 al rango de fps más bajo, 15 fps en el OPPO;
+  el servicio pide un frame cada 2 s y se convierte a JPEG; reapertura a los 30 s si Android quita la cámara),
+  `AndroidDeviceStatusSource` (broadcast `ACTION_BATTERY_CHANGED`), y `WatchService` que crea el `WatchReporter`,
+  pide frames cada 2 s y escribe `capture`, `heartbeat` y la foto (`files/snapshots/`). `WatchPage` pide el permiso de
+  cámara antes de arrancar.
+- Dos problemas resueltos en el OPPO: (1) `Image.Dispose()` no libera el hueco del `ImageReader` (excepción
+  "maxImages (2) has already been acquired", que tiró la app; Android reinició el servicio solo, como se quería):
+  hay que llamar a `Close()`; (2) las fotos sueltas (`StillCapture`) salían negro puro: cambiado a flujo continuo.
+- Validado: `dotnet build` (0 avisos) y `dotnet test` (51 tests). En el OPPO, con la cámara apuntando a la
+  habitación: `capture frames=30 failed=0 period=60s` cada minuto, foto real de 11 KB a 320x240 (con la orientación
+  del sensor, sin girar; no se guarda en el repo porque sale el autor) y el registro en pantalla:
+  `docs/verificacion/2026-10-22-fase1-paso4-captura.png`. La foto se lee con
+  `adb shell run-as com.vigiahud.app cat files/snapshots/<nombre>.jpg`.
+- Diez minutos con la pantalla apagada (`mWakefulness=Asleep`), del 16:03:25 al 16:13:58 UTC: una línea `capture`
+  por minuto, todas `frames=30 failed=0`, `heartbeat uptime=10m battery=100% plugged=yes temp=30.0C` a los 10 min
+  justos y segunda foto de depuración a los 10 min del primer frame. Sin errores ni reinicios.
+
 ## Siguiente
 
-- Paso 4: captura periódica con Camera2 a baja resolución cada 2 s dentro del servicio, con un planificador en Core;
-  línea `capture` por minuto con el número de frames y `heartbeat` cada 10 min con batería y temperatura;
-  una imagen guardada cada 10 min para depurar.
+- Paso 5: permisos y guía de ColorOS: intent para excluir la app de la optimización de batería, comprobación del
+  estado (`isIgnoringBatteryOptimizations`) en pantalla, y una pantalla de ayuda con la lista de ajustes de ColorOS
+  (inicio automático, ejecutar en segundo plano, candado en recientes), documentada con capturas del OPPO.

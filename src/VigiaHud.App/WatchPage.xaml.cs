@@ -43,6 +43,14 @@ public partial class WatchPage : ContentPage
             return;
         }
 
+        // The camera is the watch; without it there is nothing to start. The service must not ask: it has no UI.
+        var camera = await Permissions.RequestAsync<Permissions.Camera>();
+        if (camera != PermissionStatus.Granted)
+        {
+            Detail.Text = "Sin permiso de cámara no hay vigilancia. Concédelo en Ajustes > Aplicaciones > VigíaHud.";
+            return;
+        }
+
         // Android 13+ needs leave to show the permanent notification; on this phone (Android 10) it is granted by default.
         var notifications = await Permissions.RequestAsync<Permissions.PostNotifications>();
         if (notifications != PermissionStatus.Granted)
