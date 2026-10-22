@@ -50,7 +50,8 @@
 - Validado: `dotnet build` (0 avisos) y `dotnet test` (26 tests: formato y parseo, ida y vuelta de mensajes con
   tabuladores y saltos, rotación con límite y ventana de ficheros, un solo fichero, escritura concurrente sin líneas
   partidas, fallo de disco sin excepción, lectura en orden saltando líneas rotas). En el OPPO, tras abrir la app dos
-  veces, el fichero contiene dos líneas `start` con instante UTC correcto (hora local 17:03, UTC 15:03).
+  veces, el fichero contiene dos líneas `start` con instante UTC correcto (hora local 17:03, UTC 15:03), y el panel
+  REGISTRO las muestra en hora local: `docs/verificacion/2026-10-22-fase1-paso2-registro.png`.
 
 ## Siguiente
 
