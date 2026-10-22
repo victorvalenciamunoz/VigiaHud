@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="VigiaHud.App.WatchPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource HudBackground}">
+
+    <ContentPage.Resources>
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="FontFamily" Value="ChakraPetch" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="BorderWidth" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="MinimumHeightRequest" Value="32" />
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="{DynamicResource HudGuide}" />
+            <Setter Property="BorderColor" Value="{DynamicResource HudGuide}" />
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*" Padding="16,44,16,16" RowSpacing="12">
+
+        <!-- Header in the family's look: the name, and the version. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Label Text="VIGÍAHUD" FontFamily="ChakraPetchBold" FontSize="18" CharacterSpacing="2"
+                   TextColor="{DynamicResource HudGuide}" VerticalOptions="Center" />
+            <Label Grid.Column="1" x:Name="Version" FontFamily="ChakraPetch" FontSize="11" CharacterSpacing="1"
+                   TextColor="{DynamicResource HudTextMuted}" VerticalOptions="Center" />
+        </Grid>
+
+        <!-- The one screen of phase 1: is the watch running, and the button to start or stop it (wired in step 3). -->
+        <Border Grid.Row="1" VerticalOptions="Start" Padding="14,12" StrokeThickness="1"
+                BackgroundColor="{DynamicResource HudBackground}" Stroke="{DynamicResource HudTextDim}">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="8" />
+            </Border.StrokeShape>
+            <VerticalStackLayout Spacing="8">
+                <Label Text="VIGILANCIA" FontFamily="ChakraPetchBold" FontSize="12" CharacterSpacing="1"
+                       TextColor="{DynamicResource HudTextSoft}" />
+                <Label x:Name="Status" Text="Parada." FontFamily="ChakraPetchBold" FontSize="20" CharacterSpacing="1"
+                       TextColor="{DynamicResource HudTextMuted}" />
+                <Label x:Name="Detail" Text="El servicio de captura llega en el paso 3 de la fase 1."
+                       FontFamily="OpenSansRegular" FontSize="12" TextColor="{DynamicResource HudTextMuted}" />
+                <Button x:Name="Toggle" Text="INICIAR" Style="{StaticResource Chip}" IsEnabled="False"
+                        HorizontalOptions="Start" Margin="0,6,0,0" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>
