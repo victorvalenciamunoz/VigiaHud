@@ -31,8 +31,8 @@
 - Validado: `dotnet build` de toda la solución (0 avisos, 0 errores, incluida la app Android) y `dotnet test` (1 test).
   `dotnet build src/VigiaHud.App -t:Install` instala en el OPPO (`minSdk=29 targetSdk=36 versionName=0.1.0` según
   `dumpsys package`); la app arranca sin errores en el registro (`logcat`): proceso vivo y ventana de `MainActivity`
-  creada. El arranque en Debug tarda unos 15 s en este móvil. Pendiente la captura de pantalla: el bloqueo de ColorOS
-  no se quita desde `adb` y hay que desbloquear a mano.
+  creada. El arranque en Debug tarda unos 15 s en este móvil. Captura con el móvil desbloqueado a mano (el bloqueo de
+  ColorOS no se quita desde `adb`): `docs/verificacion/2026-10-22-fase1-paso1-esqueleto.png`.
 
 ## Siguiente
 
