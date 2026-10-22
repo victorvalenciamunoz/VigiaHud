@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VigiaHud.App/VigiaHud.App.csproj" />
+    <Project Path="src/VigiaHud.Core/VigiaHud.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VigiaHud.Core.Tests/VigiaHud.Core.Tests.csproj" />
+  </Folder>
+</Solution>

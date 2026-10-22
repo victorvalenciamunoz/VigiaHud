@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Android only, as the siblings. Overrides the net10.0 of Directory.Build.props. -->
+		<TargetFramework>net10.0-android</TargetFramework>
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>VigiaHud.App</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+		<ApplicationTitle>VigíaHud</ApplicationTitle>
+		<ApplicationId>com.vigiahud.app</ApplicationId>
+		<!-- ApplicationVersion is major*10000 + minor*100 + patch: Android installs an update only if it grows. -->
+		<ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>100</ApplicationVersion>
+
+		<!-- The phone it is built for runs Android 10 (DECISIONS 003); nothing older is validated. -->
+		<SupportedOSPlatformVersion>29.0</SupportedOSPlatformVersion>
+	</PropertyGroup>
+
+	<!-- Fast Deployment can leave stale resource ids on the phone (crash "No view found for id" at startup); embed assemblies instead. -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0B1218" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0B1218" BaseSize="128,128" />
+		<MauiFont Include="Resources\Fonts\*" />
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+		<!-- License texts that must travel with the app (OFL fonts, third-party notices). Taken from the repo root, not copied. -->
+		<MauiAsset Include="..\..\LICENSE;..\..\THIRD-PARTY-NOTICES.md;..\..\licenses\*.txt" LogicalName="licenses\%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\VigiaHud.Core\VigiaHud.Core.csproj" />
+	</ItemGroup>
+
+</Project>

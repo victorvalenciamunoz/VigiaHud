@@ -1,0 +1,40 @@
+# Runs the Core test suite on every pull request to main (and on pushes to main after merging).
+# Only Core and its tests are built: they need the plain .NET SDK pinned in global.json, no MAUI workload,
+# so the check takes about a minute. The Android app is built and tried on the phone by hand.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests de Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restaurar
+        run: dotnet restore tests/VigiaHud.Core.Tests
+
+      - name: Compilar
+        run: dotnet build tests/VigiaHud.Core.Tests --no-restore --configuration Release
+
+      - name: Tests
+        run: dotnet test tests/VigiaHud.Core.Tests --no-build --configuration Release --logger "console;verbosity=normal"
