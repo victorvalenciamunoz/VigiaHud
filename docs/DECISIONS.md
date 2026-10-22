@@ -89,3 +89,24 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: `WorkManager`/`JobScheduler` (descartado: no garantizan continuidad ni acceso a la cámara);
   wake lock con tiempo límite renovado (descartado por ahora: un olvido lo apaga; se revisará si la batería o el
   juez lo piden); pantalla encendida en negro (plan B de `PLAN.md`, solo si el juez de 24 h falla).
+
+## 008 — Captura con Camera2: flujo continuo a baja resolución y pocos fps, un frame cada 2 s
+- Contexto: la fase 1 solo necesita demostrar que la cámara sigue entregando frames con la pantalla apagada durante
+  días; el análisis llega en la fase 3. Móvil viejo y enchufado 24/7: cuanto menos trabaje la cámara, menos calor.
+  Primer intento (2026-10-22): una foto JPEG suelta (`StillCapture`) cada 2 s desde una sesión sin flujo previo.
+  Funcionaba (30 frames por minuto, cero fallos) pero todas las fotos salían negro puro: sin flujo la exposición no
+  converge en este móvil.
+- Decisión: `CameraCapturer` abre la cámara trasera con Camera2 en su propio `HandlerThread` y mantiene una
+  petición repetitiva (`Preview`, sin flash, el rango de fps más bajo que ofrece la cámara) hacia un único
+  `ImageReader` YUV_420_888 al tamaño más pequeño de al menos 320 px de ancho (320x240 en el OPPO). El servicio pide
+  un frame cada `WatchTimings.CaptureInterval` (2 s): el siguiente frame del flujo se convierte a NV21 y a JPEG
+  (calidad 70) y se entrega; el resto se descartan sin copiarlos. Si al pedir el siguiente aún no ha llegado el
+  anterior, el flujo se ha parado: cuenta como fallo. Si Android quita la cámara (`onDisconnected`/`onError`), se
+  cierra y se reintenta a los 30 s; cada fallo es una línea `error` y suma en `failed` de la siguiente línea
+  `capture`. `WatchReporter` (Core) decide cuándo toca la línea `capture` (cada minuto: `frames=N failed=M
+  period=60s`), el `heartbeat` (cada 10 min: `uptime battery plugged temp`) y la instantánea de depuración (la
+  primera y después cada 10 min; `SnapshotStore` guarda como máximo 200 en `files/snapshots`, con la orientación del
+  sensor, sin girar). Permiso de cámara pedido en la página antes de arrancar el servicio.
+- Alternativas: fotos sueltas (descartado: negras, ver arriba); ráfaga por petición para que converja la exposición
+  (descartado: más trabajo por foto que un flujo a pocos fps y no sirve para la fase 3); CameraX (descartado:
+  paquete AndroidX más sin ventaja); API `Camera` antigua (obsoleta).
