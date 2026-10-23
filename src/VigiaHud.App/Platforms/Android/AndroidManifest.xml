@@ -11,5 +11,7 @@
 	<uses-permission android:name="android.permission.CAMERA" />
 	<!-- The permanent notification needs this on Android 13+. -->
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<!-- To ask the user, from the app, to exempt it from battery optimization (Doze): the watch must not be put to sleep. -->
+	<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 	<uses-feature android:name="android.hardware.camera" android:required="true" />
 </manifest>

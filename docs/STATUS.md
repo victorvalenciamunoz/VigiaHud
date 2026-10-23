@@ -99,8 +99,16 @@
   por minuto, todas `frames=30 failed=0`, `heartbeat uptime=10m battery=100% plugged=yes temp=30.0C` a los 10 min
   justos y segunda foto de depuración a los 10 min del primer frame. Sin errores ni reinicios.
 
-## Siguiente
+### Primera muerte del servicio: ColorOS al desenchufar (2026-10-22, analizado el 2026-10-23)
 
-- Paso 5: permisos y guía de ColorOS: intent para excluir la app de la optimización de batería, comprobación del
-  estado (`isIgnoringBatteryOptimizations`) en pantalla, y una pantalla de ayuda con la lista de ajustes de ColorOS
-  (inicio automático, ejecutar en segundo plano, candado en recientes), documentada con capturas del OPPO.
+- El servicio del paso 4 quedó vigilando el 2026-10-22 a las 16:03 UTC. El registro muestra 20 minutos perfectos
+  (26 líneas `capture`, todas `frames=30 failed=0`, dos latidos) y se corta a las 16:23:29 UTC sin ninguna línea de
+  parada. El latido de las 16:23:25 dice `plugged=no`: se había desenchufado el cable.
+- Registro de eventos de Android (`adb logcat -b events`): `am_kill [... com.vigiahud.app, 1000, o-kill]` a las
+  16:23:55 UTC (18:23:55 local), 26 s después del latido, seguido de `am_proc_died`. "o-kill" es el gestor de
+  procesos de ColorOS. El móvil no se reinició (`/proc/uptime` 20 h). El servicio sticky no volvió: ColorOS mata y
+  además impide el reinicio. La app no estaba excluida de la optimización de batería (`dumpsys deviceidle whitelist`
+  vacío para ella) ni tenía los permisos de ColorOS de segundo plano.
+- Conclusión: con la configuración de fábrica, ColorOS 7.1 mata la vigilancia al pasar el móvil a batería. El paso 5
+  (exclusión de batería y ajustes de ColorOS) es obligatorio, y el juez tiene que incluir desenchufar y volver a
+  enchufar el móvil.

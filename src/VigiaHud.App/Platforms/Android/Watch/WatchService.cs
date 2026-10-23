@@ -75,6 +75,13 @@ public sealed class WatchService : Service
                 // The log line goes first: the page refreshes its tail when it hears RunningChanged.
                 var restarted = intent is null || flags.HasFlag(StartCommandFlags.Redelivery) || flags.HasFlag(StartCommandFlags.Retry);
                 _log?.Write(LogKind.Start, restarted ? "service restarted by Android" : "service started");
+                // Whether Android may put us to sleep: the first thing to look at when the judge finds a gap.
+                var phone = services?.GetService<VigiaHud.App.Device.IPhoneSetup>();
+                if (phone is not null)
+                {
+                    _log?.Write(LogKind.Info, $"battery optimization ignored={(phone.IsBatteryOptimizationIgnored ? "yes" : "no")}");
+                }
+
                 StartCapturing();
                 SetRunning(true);
             }
