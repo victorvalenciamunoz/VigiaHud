@@ -125,3 +125,18 @@ Formato: contexto → decisión → alternativas descartadas.
   sin permiso) y que el usuario busque la app (descartado: más pasos, más fácil equivocarse); no pedir nada y confiar
   en el foreground service (descartado: el wake lock de un servicio en primer plano sobrevive a Doze en el código de
   Android, pero en ColorOS no hay garantía y el coste de pedirlo es un toque).
+
+## 010 — El juez de la fase 1 es un script sobre el registro, con umbrales fijos
+- Contexto: `PLAN.md` pide 24 h (y después 72 h) con la pantalla apagada y "sin huecos mayores de 1 minuto" en las
+  capturas, medido sobre el registro. El registro ya escribe una línea `capture` por minuto con los frames de ese
+  minuto, así que un hueco en los frames se ve como una línea con pocos frames o como un hueco entre líneas.
+- Decisión: `scripts/judge-log.ps1` (PowerShell, sin proyecto nuevo: la consola de Core llega en la fase 3).
+  Extrae el registro del móvil con `adb` (`run-as`, ficheros rotados en orden) o lee uno dado, filtra una ventana
+  UTC y escribe un informe Markdown: ventana, líneas `capture` y frames totales, hueco máximo entre líneas
+  `capture`, huecos mayores de 120 s (dos minutos perdidos; la cadencia nominal es 60 s y se han visto 62 s
+  normales), líneas con menos de 25 frames o con fallos, arranques y reinicios por Android, paradas, errores, latidos
+  (último uptime, cuántos sin cargador), batería y temperatura mínima y máxima. Veredicto: PASA si no hay huecos,
+  reinicios, errores ni líneas flojas; PASA con avisos si solo hay errores o líneas flojas; FALLA si hay huecos o
+  reinicios. El registro extraído y el informe se guardan en `docs/verificacion/` con la fecha.
+- Alternativas: implementar el juez en Core con tests (descartado por ahora: necesitaría un host de consola que el
+  plan reserva para la fase 3; el formato es trivial de parsear); juzgar a ojo (descartado: el juez son los números).
