@@ -136,8 +136,19 @@
 - Pendiente de probar: el candado en recientes y "limpiar todo" (el servicio no depende de la tarea, pero conviene
   comprobarlo en el juez de 24 h).
 
+### Paso 6 — El juez de 24 h (en curso desde el 2026-10-23)
+
+- `scripts/judge-log.ps1` (DECISIONS 010): extrae el registro del móvil y escribe el informe con el veredicto.
+  Probado sobre la ventana parcial de hoy (05:42 a 07:17 UTC): 94 líneas `capture`, 2822 frames, 0 fallos, hueco
+  máximo 1 min 01 s, 0 errores, 0 reinicios, 9 latidos (7 sin cargador), batería 85-96 %, temperatura 25,5-28,2 °C.
+- La vigilancia que se juzga arrancó el 2026-10-23 a las 05:42:48 UTC con la versión y los ajustes del paso 5
+  (exclusión de batería, "Ejecutar en segundo plano", inicio automático). Veredicto de 24 h: después de las 05:42
+  UTC del 2026-10-24, con `powershell -File scripts\judge-log.ps1 -From 2026-10-23T05:42Z`. Si pasa, se deja hasta
+  las 72 h (2026-10-26 05:42 UTC) antes de cerrar la fase. Mientras dure, no se reinstala la app ni se para el
+  servicio; el móvil puede desenchufarse y volverse a enchufar.
+
 ## Siguiente
 
-- Paso 6: el juez de 24 h. Script en el PC que lee el registro extraído con `adb` y saca el hueco máximo entre
-  líneas `capture`, reinicios, errores y la batería y temperatura mínima y máxima. La vigilancia que corre desde las
-  05:42 UTC del 2026-10-23 con la versión y los ajustes finales de este paso es la que se juzga.
+- Veredicto de 24 h y, si pasa, de 72 h.
+- Paso 7 (puede hacerse en paralelo sin instalar en el móvil hasta que acabe el juez): receptor `BOOT_COMPLETED`
+  que arranca el servicio si estaba activo antes de apagar, probado reiniciando el móvil después del juez.
