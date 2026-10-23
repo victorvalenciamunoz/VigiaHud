@@ -140,3 +140,19 @@ Formato: contexto → decisión → alternativas descartadas.
   reinicios. El registro extraído y el informe se guardan en `docs/verificacion/` con la fecha.
 - Alternativas: implementar el juez en Core con tests (descartado por ahora: necesitaría un host de consola que el
   plan reserva para la fase 3; el formato es trivial de parsear); juzgar a ojo (descartado: el juez son los números).
+
+## 011 — Arranque tras reinicio y tras actualizar la app, solo si la vigilancia estaba activa
+- Contexto: un corte de luz largo apaga el móvil cuando se agota la batería; al volver la luz arranca solo, pero la
+  app no. Lo mismo al instalar una versión nueva: Android mata el proceso y el servicio no vuelve. Verificado en la
+  documentación oficial (2026-10-22): `BOOT_COMPLETED` sigue siendo un receptor de manifiesto permitido; en Android
+  10 un receptor puede arrancar un servicio en primer plano y usar la cámara; en Android 15+ (objetivo 35+) arrancar
+  un servicio de tipo `camera` desde `BOOT_COMPLETED` lanza `ForegroundServiceStartNotAllowedException`. En ColorOS
+  hace falta además el permiso de inicio automático (`docs/MOVIL.md`).
+- Decisión: `BootReceiver` (nombre Java fijo, exportado como exige el sistema para estos broadcasts) escucha
+  `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED`. Solo arranca el servicio si la vigilancia estaba activa: la página guarda
+  en `Preferences` (`watch_enabled`) cada INICIAR y PARAR, y un reinicio del servicio por Android no la toca. Deja en
+  el registro `start` ("service start requested after boot/update") o `error` si el sistema no lo permite. En este
+  móvil (Android 10) debe funcionar; en Android 15+ quedará apuntado el error y el usuario tendrá que abrir la app.
+- Alternativas: arrancar siempre al reiniciar (descartado: si el dueño paró la vigilancia a propósito, debe seguir
+  parada); `WorkManager` para diferir el arranque (descartado: no evita la regla de Android 15 para `camera` y
+  añade un paquete).

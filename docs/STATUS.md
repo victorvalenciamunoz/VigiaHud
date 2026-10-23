@@ -147,8 +147,18 @@
   las 72 h (2026-10-26 05:42 UTC) antes de cerrar la fase. Mientras dure, no se reinstala la app ni se para el
   servicio; el móvil puede desenchufarse y volverse a enchufar.
 
+### Paso 7 — Arranque tras reinicio (código listo el 2026-10-23, pendiente de probar en el móvil)
+
+- `BootReceiver` (DECISIONS 011): escucha `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED` y arranca el servicio solo si
+  la vigilancia estaba activa (`WatchSettings.Enabled`, guardado en `Preferences` por INICIAR y PARAR). Deja
+  `start` ("service start requested after boot/update") o `error` si el sistema no lo permite. Permiso
+  `RECEIVE_BOOT_COMPLETED` en el manifiesto; el manifiesto generado lleva el receptor con los dos intents.
+- `dotnet build` 0 avisos. No se instala en el OPPO hasta que termine el juez de 24 h (reinstalar mata el servicio).
+  Prueba prevista: instalar, INICIAR, `adb reboot`, y comprobar en el registro `service start requested after boot`
+  seguido de `service started`; y la actualización: reinstalar con el servicio en marcha y ver
+  `... after update`.
+
 ## Siguiente
 
-- Veredicto de 24 h y, si pasa, de 72 h.
-- Paso 7 (puede hacerse en paralelo sin instalar en el móvil hasta que acabe el juez): receptor `BOOT_COMPLETED`
-  que arranca el servicio si estaba activo antes de apagar, probado reiniciando el móvil después del juez.
+- 2026-10-24 después de las 05:42 UTC: veredicto de 24 h con `scripts/judge-log.ps1 -From 2026-10-23T05:42Z`.
+- Después: instalar el paso 7, probar reinicio y actualización, fusionar, y dejar la vigilancia 72 h para cerrar la fase.

@@ -21,6 +21,8 @@ public sealed class AndroidWatchController : IWatchController
 
     public void Start()
     {
+        // The owner's choice, remembered for the boot receiver (DECISIONS 011).
+        WatchSettings.Enabled = true;
         try
         {
             var context = global::Android.App.Application.Context;
@@ -35,6 +37,7 @@ public sealed class AndroidWatchController : IWatchController
 
     public void Stop()
     {
+        WatchSettings.Enabled = false;
         var context = global::Android.App.Application.Context;
         context.StartService(new Intent(context, typeof(WatchService)).SetAction(WatchService.ActionStop));
     }
