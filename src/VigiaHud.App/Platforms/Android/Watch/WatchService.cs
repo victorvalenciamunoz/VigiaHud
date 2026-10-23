@@ -61,6 +61,8 @@ public sealed class WatchService : Service
         if (intent?.Action == ActionStop)
         {
             _log?.Write(LogKind.Stop, "service stop requested");
+            // Stopped on purpose: the watchdog must not bring it back.
+            WatchdogReceiver.Cancel(this);
             StopForeground(StopForegroundFlags.Remove);
             StopSelf();
             return StartCommandResult.NotSticky;
@@ -92,6 +94,8 @@ public sealed class WatchService : Service
                 }
 
                 StartCapturing();
+                // The alarm that outlives this process (DECISIONS 012): if we die and the sticky restart fails, it starts us again.
+                WatchdogReceiver.Schedule(this);
                 SetRunning(true);
             }
         }

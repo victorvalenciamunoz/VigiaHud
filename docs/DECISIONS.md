@@ -164,3 +164,24 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: arrancar siempre al reiniciar (descartado: si el dueño paró la vigilancia a propósito, debe seguir
   parada); `WorkManager` para diferir el arranque (descartado: no evita la regla de Android 15 para `camera` y
   añade un paquete).
+
+## 012 — Sin copia de seguridad de Android, y un vigilante por alarma que reviva el servicio
+- Contexto: el 2026-10-23 a las 07:28 UTC, en pleno juez de 24 h, el proceso murió sin `am_kill`: el registro de
+  eventos muestra `full_backup_package com.vigiahud.app` justo antes de `am_proc_died`. Android hace copias de
+  seguridad automáticas de las apps con `allowBackup="true"` (el valor de la plantilla MAUI) cuando el móvil está
+  cargando, inactivo y con wifi, y para ello mata el proceso. Además esa copia sube los ficheros privados de la app
+  (registro y fotos del interior de la casa) a la cuenta de Google. Un segundo después Android programó el reinicio
+  sticky (`am_schedule_service_restart`), pero con la app inactiva y sin su notificación aplicó
+  `am_stop_idle_service` antes de que el proceso nuevo ejecutara el servicio; el proceso quedó vacío y fue matado a
+  los 23 s. La vigilancia estuvo muerta 15 minutos, hasta que el dueño abrió la app. Reproducido con `am crash`.
+- Decisión: (1) `android:allowBackup="false"`: nada de la app sale del móvil por esa vía y el sistema no lo mata
+  para copiarlo. (2) `START_STICKY` se mantiene, pero no se confía en él: `WatchService` programa con `AlarmManager`
+  (`setAndAllowWhileIdle`, inexacta, cada 10 min) un `WatchdogReceiver` que, si el servicio no está corriendo y la
+  vigilancia estaba activa (`IWatchSettings.Enabled`), lo arranca y lo apunta en el registro (`info watchdog: service
+  start requested`); el receptor vuelve a programarse a sí mismo, de modo que sobrevive a la muerte del proceso. El
+  servicio cancela la alarma al pararse a propósito. En Android 10 un receptor de alarma puede arrancar un servicio
+  en primer plano; en Android 12+ haría falta una alarma exacta (`SCHEDULE_EXACT_ALARM`) para la exención, cosa que
+  no se valida en esta fase.
+- Alternativas: `JobScheduler` periódico (descartado: mínimo 15 min y sin garantía de puntualidad en reposo);
+  dos procesos que se vigilen mutuamente (descartado: ColorOS los mata juntos); confiar en el sticky (descartado:
+  demostrado que falla).

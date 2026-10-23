@@ -13,13 +13,16 @@ public sealed class AndroidDeviceStatusSource : IDeviceStatusSource
     public DeviceStatus Read()
     {
         var context = global::Android.App.Application.Context;
+        var power = (PowerManager?)context.GetSystemService(Context.PowerService);
+        bool? exempt = power?.IsIgnoringBatteryOptimizations(context.PackageName!);
+
         var filter = new IntentFilter(Intent.ActionBatteryChanged);
         var intent = OperatingSystem.IsAndroidVersionAtLeast(33)
             ? context.RegisterReceiver(null, filter, ReceiverFlags.NotExported)
             : context.RegisterReceiver(null, filter);
         if (intent is null)
         {
-            return new DeviceStatus(null, false, null);
+            return new DeviceStatus(null, false, null, exempt);
         }
 
         var level = intent.GetIntExtra(BatteryManager.ExtraLevel, -1);
@@ -29,6 +32,6 @@ public sealed class AndroidDeviceStatusSource : IDeviceStatusSource
 
         int? percent = level >= 0 && scale > 0 ? (int)Math.Round(100.0 * level / scale) : null;
         double? temperature = tenthsOfDegree == int.MinValue ? null : tenthsOfDegree / 10.0;
-        return new DeviceStatus(percent, plugged != 0, temperature);
+        return new DeviceStatus(percent, plugged != 0, temperature, exempt);
     }
 }

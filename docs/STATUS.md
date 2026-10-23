@@ -147,7 +147,7 @@
   las 72 h (2026-10-26 05:42 UTC) antes de cerrar la fase. Mientras dure, no se reinstala la app ni se para el
   servicio; el móvil puede desenchufarse y volverse a enchufar.
 
-### Paso 7 — Arranque tras reinicio (código listo el 2026-10-23, pendiente de probar en el móvil)
+### Paso 7 — Arranque tras reinicio y tras actualizar (2026-10-23)
 
 - `BootReceiver` (DECISIONS 011): escucha `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED` y arranca el servicio solo si
   la vigilancia estaba activa (`IWatchSettings.Enabled`, en `Preferences`; el controlador lo guarda cuando la petición
@@ -156,12 +156,35 @@
   Requisito: móvil sin PIN ni patrón, porque `BOOT_COMPLETED` solo llega tras desbloquear (`docs/MOVIL.md`).
   Revisión de código del 2026-10-23 (7 hallazgos, todos en este paso): corregidos antes de instalar. Permiso
   `RECEIVE_BOOT_COMPLETED` en el manifiesto; el manifiesto generado lleva el receptor con los dos intents.
-- `dotnet build` 0 avisos. No se instala en el OPPO hasta que termine el juez de 24 h (reinstalar mata el servicio).
-  Prueba prevista: instalar, INICIAR, `adb reboot`, y comprobar en el registro `boot: service start requested`
-  seguido de `service started`; y la actualización: reinstalar con el servicio en marcha y ver
-  `... after update`.
+- Validado en el OPPO el 2026-10-23: reinstalación con el servicio en marcha (`adb install -r`): `update: service
+  start requested` y `service started` 7 s después de la muerte del proceso; `adb reboot` a las 10:13 UTC:
+  `boot: service start requested` y `service started` a las 10:15:36 UTC, con la exclusión de batería intacta y la
+  alarma del vigilante armada. `dotnet build` 0 avisos, `dotnet test` 52 tests.
+
+### Segunda muerte del servicio: la copia de seguridad de Android (2026-10-23)
+
+- El juez intermedio de las 09:53 UTC dio FALLA: hueco de 15 min 44 s desde las 07:28 UTC y un segundo arranque
+  manual. Eventos de Android: `full_backup_package com.vigiahud.app` a las 07:28:43 UTC y `am_proc_died` un segundo
+  después: la copia de seguridad automática de Android (`allowBackup="true"`, el valor de la plantilla) mata el
+  proceso para copiarlo, y de paso sube registro y fotos a la cuenta de Google. Android programó el reinicio sticky,
+  pero aplicó `am_stop_idle_service` antes de que el proceso nuevo ejecutara el servicio y lo mató como vacío a los
+  23 s. Causa de fondo del segundo fallo: la **exclusión de la optimización de batería había desaparecido sola**
+  (`ignored=yes` a las 05:42 y 07:42 UTC, `no` a las 09:57; `dumpsys deviceidle whitelist` vacío); sin ella la app
+  deja el cubo "exento" y Android para los servicios de una app inactiva al reiniciarlos. Reproducido: con la
+  exclusión puesta, `am crash` con la app forzada a inactiva (`am make-uid-idle`) reinicia bien en 5 s
+  ("service restarted by Android"); un `am crash` no quita la exclusión. Qué la quita sigue sin saberse: queda un
+  vigilante observando `dumpsys deviceidle whitelist` y, desde esta versión, cada latido lleva `doze_exempt=yes|no`.
+- Arreglos (DECISIONS 012): `allowBackup="false"`; `WatchdogReceiver` por alarma (`setAndAllowWhileIdle`, cada
+  10 min) que arranca el servicio si no corre y la vigilancia estaba activa, y que se reprograma a sí mismo;
+  cancelado en PARAR. `DeviceStatus.IsBatteryOptimizationIgnored` en Core (52 tests) y en el latido.
+- Validado en el OPPO: tras instalar, `dumpsys package` ya no muestra `ALLOW_BACKUP`; la alarma `WATCHDOG` aparece en
+  `dumpsys alarm`; una reinstalación con el servicio en marcha produce `update: service start requested` y
+  `service started` en 7 s (receptor de `MY_PACKAGE_REPLACED`).
 
 ## Siguiente
 
-- 2026-10-24 después de las 05:42 UTC: veredicto de 24 h con `scripts/judge-log.ps1 -From 2026-10-23T05:42Z`.
-- Después: instalar el paso 7, probar reinicio y actualización, fusionar, y dejar la vigilancia 72 h para cerrar la fase.
+- Juez definitivo de 24 h: la vigilancia arrancada por el receptor de arranque el 2026-10-23 a las 10:15:37 UTC, con
+  la versión del paso 7 (sin copia de seguridad, vigilante por alarma, `doze_exempt` en el latido) y los ajustes del
+  paso 5. Veredicto después de las 10:15 UTC del 2026-10-24: `scripts\judge-log.ps1 -From 2026-10-23T10:15Z`.
+  Si pasa, 72 h (hasta el 2026-10-26 10:15 UTC) y cierre de la fase 1.
+- Pendiente de entender qué quita la exclusión de la optimización de batería: mirar `doze_exempt` en los latidos.

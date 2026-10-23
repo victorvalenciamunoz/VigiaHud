@@ -11,13 +11,17 @@ public class WatchMessagesTests
         Assert.Equal("frames=30 failed=1 period=60s", WatchMessages.Capture(new CaptureReport(30, 1, TimeSpan.FromSeconds(60.4))));
 
     [Fact]
-    public void Heartbeat_line_has_uptime_battery_plug_and_temperature() =>
-        Assert.Equal("uptime=1h02m battery=97% plugged=yes temp=33.5C",
-            WatchMessages.Heartbeat(new DeviceStatus(97, true, 33.5), TimeSpan.FromMinutes(62)));
+    public void Heartbeat_line_has_uptime_battery_plug_temperature_and_doze_exemption() =>
+        Assert.Equal("uptime=1h02m battery=97% plugged=yes temp=33.5C doze_exempt=yes",
+            WatchMessages.Heartbeat(new DeviceStatus(97, true, 33.5, true), TimeSpan.FromMinutes(62)));
 
     [Fact]
-    public void Unknown_battery_and_temperature_are_question_marks() =>
-        Assert.Equal("uptime=0m battery=? plugged=no temp=?",
+    public void A_lost_doze_exemption_is_said_in_the_heartbeat() =>
+        Assert.EndsWith(" doze_exempt=no", WatchMessages.Heartbeat(new DeviceStatus(50, true, 30.0, false), TimeSpan.Zero));
+
+    [Fact]
+    public void Unknown_battery_temperature_and_exemption_are_question_marks() =>
+        Assert.Equal("uptime=0m battery=? plugged=no temp=? doze_exempt=?",
             WatchMessages.Heartbeat(new DeviceStatus(null, false, null), TimeSpan.Zero));
 
     [Fact]
