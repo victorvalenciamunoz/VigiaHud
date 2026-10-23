@@ -150,11 +150,14 @@
 ### Paso 7 — Arranque tras reinicio (código listo el 2026-10-23, pendiente de probar en el móvil)
 
 - `BootReceiver` (DECISIONS 011): escucha `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED` y arranca el servicio solo si
-  la vigilancia estaba activa (`WatchSettings.Enabled`, guardado en `Preferences` por INICIAR y PARAR). Deja
-  `start` ("service start requested after boot/update") o `error` si el sistema no lo permite. Permiso
+  la vigilancia estaba activa (`IWatchSettings.Enabled`, en `Preferences`; el controlador lo guarda cuando la petición
+  de INICIAR sale bien y en PARAR). Deja `info` ("boot: service start requested") o `error` si el sistema no lo
+  permite; el servicio comprueba el permiso de cámara al arrancar y se para con un `error` claro si falta.
+  Requisito: móvil sin PIN ni patrón, porque `BOOT_COMPLETED` solo llega tras desbloquear (`docs/MOVIL.md`).
+  Revisión de código del 2026-10-23 (7 hallazgos, todos en este paso): corregidos antes de instalar. Permiso
   `RECEIVE_BOOT_COMPLETED` en el manifiesto; el manifiesto generado lleva el receptor con los dos intents.
 - `dotnet build` 0 avisos. No se instala en el OPPO hasta que termine el juez de 24 h (reinstalar mata el servicio).
-  Prueba prevista: instalar, INICIAR, `adb reboot`, y comprobar en el registro `service start requested after boot`
+  Prueba prevista: instalar, INICIAR, `adb reboot`, y comprobar en el registro `boot: service start requested`
   seguido de `service started`; y la actualización: reinstalar con el servicio en marcha y ver
   `... after update`.
 

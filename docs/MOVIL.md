@@ -46,6 +46,9 @@ tarjeta y tocar el candado). Así "limpiar todo" no la cierra.
 
 - La pantalla se apaga sola (30 s por defecto): es lo que queremos. El servicio sigue con la pantalla apagada.
 - No hace falta desbloquear el móvil para que vigile. Solo para abrir la app.
+- **Sin PIN ni patrón** (bloqueo por deslizamiento o ninguno). Con bloqueo seguro, Android no arranca la app tras un
+  reinicio hasta que alguien desbloquee, y un corte de luz largo dejaría la vigilancia muerta hasta la próxima
+  visita (`DECISIONS.md` 011). Es un móvil dedicado dentro de casa: no guarda nada más.
 - Durante el desarrollo, para poder hacer capturas desde el PC, conviene activar
   Opciones de desarrollador > "Pantalla siempre activa" y quitarlo después.
 

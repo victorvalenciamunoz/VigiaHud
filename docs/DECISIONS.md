@@ -149,9 +149,17 @@ Formato: contexto → decisión → alternativas descartadas.
   un servicio de tipo `camera` desde `BOOT_COMPLETED` lanza `ForegroundServiceStartNotAllowedException`. En ColorOS
   hace falta además el permiso de inicio automático (`docs/MOVIL.md`).
 - Decisión: `BootReceiver` (nombre Java fijo, exportado como exige el sistema para estos broadcasts) escucha
-  `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED`. Solo arranca el servicio si la vigilancia estaba activa: la página guarda
-  en `Preferences` (`watch_enabled`) cada INICIAR y PARAR, y un reinicio del servicio por Android no la toca. Deja en
-  el registro `start` ("service start requested after boot/update") o `error` si el sistema no lo permite. En este
+  `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED`. Solo arranca el servicio si la vigilancia estaba activa:
+  `IWatchSettings.Enabled` (en `Preferences`, `watch_enabled`), que el controlador pone a verdadero cuando la
+  petición de arranque de INICIAR sale bien y a falso en PARAR; un reinicio del servicio por Android no lo toca.
+  Deja en el registro `info` ("boot: service start requested"; no `start`, que es la línea del propio servicio y la
+  que cuenta el juez) o `error` si el sistema no lo permite; si no hay registro, lo dice en logcat. El servicio
+  comprueba el permiso de cámara al arrancar por cualquier vía y, si falta, lo apunta y se para en vez de reintentar
+  la cámara cada 30 s sin decir por qué.
+  Requisito del móvil: **sin PIN ni patrón**. Android solo entrega `BOOT_COMPLETED` cuando el usuario ha
+  desbloqueado (almacenamiento cifrado con credenciales), así que con bloqueo seguro el arranque desatendido no
+  ocurre. Soportar `LOCKED_BOOT_COMPLETED` exigiría mover registro y preferencias a almacenamiento protegido por
+  dispositivo; se descarta en esta fase y se documenta en `docs/MOVIL.md`. En este
   móvil (Android 10) debe funcionar; en Android 15+ quedará apuntado el error y el usuario tendrá que abrir la app.
 - Alternativas: arrancar siempre al reiniciar (descartado: si el dueño paró la vigilancia a propósito, debe seguir
   parada); `WorkManager` para diferir el arranque (descartado: no evita la regla de Android 15 para `camera` y
