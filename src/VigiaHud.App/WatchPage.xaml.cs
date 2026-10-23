@@ -1,3 +1,4 @@
+using VigiaHud.App.Device;
 using VigiaHud.App.Watch;
 using VigiaHud.Core.Logging;
 
@@ -14,11 +15,13 @@ public partial class WatchPage : ContentPage
 
     private readonly RotatingFileLogOptions _logOptions;
     private readonly IWatchController _watch;
+    private readonly IPhoneSetup _phone;
 
-    public WatchPage(RotatingFileLogOptions logOptions, IWatchController watch)
+    public WatchPage(RotatingFileLogOptions logOptions, IWatchController watch, IPhoneSetup phone)
     {
         _logOptions = logOptions;
         _watch = watch;
+        _phone = phone;
         InitializeComponent();
         Version.Text = $"v{AppInfo.Current.VersionString}";
         _watch.RunningChanged += (_, _) => MainThread.BeginInvokeOnMainThread(() =>
@@ -28,11 +31,41 @@ public partial class WatchPage : ContentPage
         });
     }
 
+    private bool _watchingResume;
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // Back from a system dialog or the settings app, the page is not "appearing" again but the window resumes:
+        // that is when the battery exemption may have changed.
+        if (!_watchingResume && Window is { } window)
+        {
+            _watchingResume = true;
+            window.Resumed += (_, _) => Refresh();
+        }
+
+        Refresh();
+    }
+
+    private void Refresh()
+    {
         ShowWatchState();
+        ShowPhoneSetup();
         ShowLogTail();
+    }
+
+    private void OnBatteryClicked(object? sender, EventArgs e) => _phone.RequestIgnoreBatteryOptimization();
+
+    private void OnAppSettingsClicked(object? sender, EventArgs e) => _phone.OpenAppSettings();
+
+    private void ShowPhoneSetup()
+    {
+        var ignored = _phone.IsBatteryOptimizationIgnored;
+        BatteryStatus.Text = ignored
+            ? "Optimización de batería: excluida. Android no dormirá la vigilancia."
+            : "Optimización de batería: activa. Android puede dormir la vigilancia; pulsa EXCLUIR DE BATERÍA.";
+        BatteryStatus.TextColor = (Color)Application.Current!.Resources[ignored ? "HudGood" : "HudAlert"];
+        BatteryButton.IsVisible = !ignored;
     }
 
     private async void OnToggleClicked(object? sender, EventArgs e)

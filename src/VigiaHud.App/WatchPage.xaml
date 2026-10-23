@@ -37,7 +37,7 @@
         </Style>
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="16,44,16,16" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16,44,16,16" RowSpacing="12">
 
         <!-- Header in the family's look: the name, and the version. -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
@@ -60,8 +60,23 @@
             </VerticalStackLayout>
         </Border>
 
+        <!-- What the phone must allow so the watch survives (step 5): battery optimization off, and ColorOS's own
+             switches, which only the user can reach from the app's settings page. -->
+        <Border Grid.Row="2" Style="{StaticResource Panel}">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="MÓVIL" Style="{StaticResource PanelTitle}" />
+                <Label x:Name="BatteryStatus" FontFamily="OpenSansRegular" FontSize="12" TextColor="{DynamicResource HudTextMuted}" />
+                <Label x:Name="SetupHint" FontFamily="OpenSansRegular" FontSize="12" TextColor="{DynamicResource HudTextMuted}"
+                       Text="En ColorOS, además: Ajustes de la app > Inicio automático, Ejecutar en segundo plano, y el candado en recientes." />
+                <HorizontalStackLayout Spacing="8" Margin="0,6,0,0">
+                    <Button x:Name="BatteryButton" Text="EXCLUIR DE BATERÍA" Style="{StaticResource Chip}" Clicked="OnBatteryClicked" />
+                    <Button Text="AJUSTES DE LA APP" Style="{StaticResource Chip}" Clicked="OnAppSettingsClicked" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+        </Border>
+
         <!-- The tail of the log (DECISIONS 006): the judge, readable on the phone itself. Errors in red. -->
-        <Border Grid.Row="2" Style="{StaticResource Panel}" VerticalOptions="Start">
+        <Border Grid.Row="3" Style="{StaticResource Panel}" VerticalOptions="Start">
             <VerticalStackLayout Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <Label Text="REGISTRO" Style="{StaticResource PanelTitle}" />

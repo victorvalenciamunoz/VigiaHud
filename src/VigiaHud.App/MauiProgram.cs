@@ -30,6 +30,8 @@ public static class MauiProgram
 #if ANDROID
         builder.Services.AddSingleton<Watch.IWatchController, Platforms.Android.Watch.AndroidWatchController>();
         builder.Services.AddSingleton<VigiaHud.Core.Device.IDeviceStatusSource, Platforms.Android.Device.AndroidDeviceStatusSource>();
+        // The phone settings the watch depends on (step 5): battery optimization and the app's settings page.
+        builder.Services.AddSingleton<Device.IPhoneSetup, Platforms.Android.Device.AndroidPhoneSetup>();
 #endif
 
         builder.Services.AddTransient<WatchPage>();

@@ -110,3 +110,18 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: fotos sueltas (descartado: negras, ver arriba); ráfaga por petición para que converja la exposición
   (descartado: más trabajo por foto que un flujo a pocos fps y no sirve para la fase 3); CameraX (descartado:
   paquete AndroidX más sin ventaja); API `Camera` antigua (obsoleta).
+
+## 009 — La exclusión de la optimización de batería se pide desde la app; el resto de ColorOS, a mano con guía
+- Contexto: con la pantalla apagada Android entra en reposo (Doze) e ignora los wake locks de las apps que no están
+  en su lista de exentas; ColorOS añade sus propios interruptores (inicio automático, segundo plano, candado en
+  recientes) sin API. Verificado en la documentación oficial de Android (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,
+  `isIgnoringBatteryOptimizations`) el 2026-10-22.
+- Decisión: la app declara `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` y, desde el panel MÓVIL, muestra si está excluida
+  (`PowerManager.isIgnoringBatteryOptimizations`) y lanza el diálogo oficial para pedirlo; también abre la ficha de
+  la app en Ajustes para los interruptores de ColorOS. El servicio apunta al arrancar `battery optimization
+  ignored=yes|no` para que el juez sepa en qué condiciones corrió. La guía con los nombres de los menús del OPPO está
+  en `docs/MOVIL.md`. La política de Google Play que restringe ese intent no aplica: la app no se distribuye por Play.
+- Alternativas: solo abrir la pantalla general de optimización de batería (`ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`,
+  sin permiso) y que el usuario busque la app (descartado: más pasos, más fácil equivocarse); no pedir nada y confiar
+  en el foreground service (descartado: el wake lock de un servicio en primer plano sobrevive a Doze en el código de
+  Android, pero en ColorOS no hay garantía y el coste de pedirlo es un toque).
