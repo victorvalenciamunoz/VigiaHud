@@ -140,3 +140,48 @@ Formato: contexto → decisión → alternativas descartadas.
   reinicios. El registro extraído y el informe se guardan en `docs/verificacion/` con la fecha.
 - Alternativas: implementar el juez en Core con tests (descartado por ahora: necesitaría un host de consola que el
   plan reserva para la fase 3; el formato es trivial de parsear); juzgar a ojo (descartado: el juez son los números).
+
+## 011 — Arranque tras reinicio y tras actualizar la app, solo si la vigilancia estaba activa
+- Contexto: un corte de luz largo apaga el móvil cuando se agota la batería; al volver la luz arranca solo, pero la
+  app no. Lo mismo al instalar una versión nueva: Android mata el proceso y el servicio no vuelve. Verificado en la
+  documentación oficial (2026-10-22): `BOOT_COMPLETED` sigue siendo un receptor de manifiesto permitido; en Android
+  10 un receptor puede arrancar un servicio en primer plano y usar la cámara; en Android 15+ (objetivo 35+) arrancar
+  un servicio de tipo `camera` desde `BOOT_COMPLETED` lanza `ForegroundServiceStartNotAllowedException`. En ColorOS
+  hace falta además el permiso de inicio automático (`docs/MOVIL.md`).
+- Decisión: `BootReceiver` (nombre Java fijo, exportado como exige el sistema para estos broadcasts) escucha
+  `BOOT_COMPLETED` y `MY_PACKAGE_REPLACED`. Solo arranca el servicio si la vigilancia estaba activa:
+  `IWatchSettings.Enabled` (en `Preferences`, `watch_enabled`), que el controlador pone a verdadero cuando la
+  petición de arranque de INICIAR sale bien y a falso en PARAR; un reinicio del servicio por Android no lo toca.
+  Deja en el registro `info` ("boot: service start requested"; no `start`, que es la línea del propio servicio y la
+  que cuenta el juez) o `error` si el sistema no lo permite; si no hay registro, lo dice en logcat. El servicio
+  comprueba el permiso de cámara al arrancar por cualquier vía y, si falta, lo apunta y se para en vez de reintentar
+  la cámara cada 30 s sin decir por qué.
+  Requisito del móvil: **sin PIN ni patrón**. Android solo entrega `BOOT_COMPLETED` cuando el usuario ha
+  desbloqueado (almacenamiento cifrado con credenciales), así que con bloqueo seguro el arranque desatendido no
+  ocurre. Soportar `LOCKED_BOOT_COMPLETED` exigiría mover registro y preferencias a almacenamiento protegido por
+  dispositivo; se descarta en esta fase y se documenta en `docs/MOVIL.md`. En este
+  móvil (Android 10) debe funcionar; en Android 15+ quedará apuntado el error y el usuario tendrá que abrir la app.
+- Alternativas: arrancar siempre al reiniciar (descartado: si el dueño paró la vigilancia a propósito, debe seguir
+  parada); `WorkManager` para diferir el arranque (descartado: no evita la regla de Android 15 para `camera` y
+  añade un paquete).
+
+## 012 — Sin copia de seguridad de Android, y un vigilante por alarma que reviva el servicio
+- Contexto: el 2026-10-23 a las 07:28 UTC, en pleno juez de 24 h, el proceso murió sin `am_kill`: el registro de
+  eventos muestra `full_backup_package com.vigiahud.app` justo antes de `am_proc_died`. Android hace copias de
+  seguridad automáticas de las apps con `allowBackup="true"` (el valor de la plantilla MAUI) cuando el móvil está
+  cargando, inactivo y con wifi, y para ello mata el proceso. Además esa copia sube los ficheros privados de la app
+  (registro y fotos del interior de la casa) a la cuenta de Google. Un segundo después Android programó el reinicio
+  sticky (`am_schedule_service_restart`), pero con la app inactiva y sin su notificación aplicó
+  `am_stop_idle_service` antes de que el proceso nuevo ejecutara el servicio; el proceso quedó vacío y fue matado a
+  los 23 s. La vigilancia estuvo muerta 15 minutos, hasta que el dueño abrió la app. Reproducido con `am crash`.
+- Decisión: (1) `android:allowBackup="false"`: nada de la app sale del móvil por esa vía y el sistema no lo mata
+  para copiarlo. (2) `START_STICKY` se mantiene, pero no se confía en él: `WatchService` programa con `AlarmManager`
+  (`setAndAllowWhileIdle`, inexacta, cada 10 min) un `WatchdogReceiver` que, si el servicio no está corriendo y la
+  vigilancia estaba activa (`IWatchSettings.Enabled`), lo arranca y lo apunta en el registro (`info watchdog: service
+  start requested`); el receptor vuelve a programarse a sí mismo, de modo que sobrevive a la muerte del proceso. El
+  servicio cancela la alarma al pararse a propósito. En Android 10 un receptor de alarma puede arrancar un servicio
+  en primer plano; en Android 12+ haría falta una alarma exacta (`SCHEDULE_EXACT_ALARM`) para la exención, cosa que
+  no se valida en esta fase.
+- Alternativas: `JobScheduler` periódico (descartado: mínimo 15 min y sin garantía de puntualidad en reposo);
+  dos procesos que se vigilen mutuamente (descartado: ColorOS los mata juntos); confiar en el sticky (descartado:
+  demostrado que falla).

@@ -61,6 +61,8 @@ public sealed class WatchService : Service
         if (intent?.Action == ActionStop)
         {
             _log?.Write(LogKind.Stop, "service stop requested");
+            // Stopped on purpose: the watchdog must not bring it back.
+            WatchdogReceiver.Cancel(this);
             StopForeground(StopForegroundFlags.Remove);
             StopSelf();
             return StartCommandResult.NotSticky;
@@ -70,6 +72,15 @@ public sealed class WatchService : Service
         {
             if (!IsRunning)
             {
+                // Started from the page, from boot or after an update: the permission may have gone since the owner
+                // granted it. Without it the camera would fail and retry every 30 s forever without naming the cause.
+                if (CheckSelfPermission(global::Android.Manifest.Permission.Camera) != Permission.Granted)
+                {
+                    _log?.Write(LogKind.Error, "camera permission missing; the watch cannot start. Open the app and press INICIAR.");
+                    StopSelf();
+                    return StartCommandResult.NotSticky;
+                }
+
                 StartForegroundWithNotification();
                 AcquireWakeLock();
                 // The log line goes first: the page refreshes its tail when it hears RunningChanged.
@@ -83,6 +94,8 @@ public sealed class WatchService : Service
                 }
 
                 StartCapturing();
+                // The alarm that outlives this process (DECISIONS 012): if we die and the sticky restart fails, it starts us again.
+                WatchdogReceiver.Schedule(this);
                 SetRunning(true);
             }
         }

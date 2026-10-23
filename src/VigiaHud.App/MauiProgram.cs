@@ -27,6 +27,7 @@ public static class MauiProgram
 
         // The watch itself: a foreground service on Android (step 3) that captures on Core's timings (step 4).
         builder.Services.AddSingleton(VigiaHud.Core.Watch.WatchTimings.Default);
+        builder.Services.AddSingleton<Watch.IWatchSettings, Watch.PreferencesWatchSettings>();
 #if ANDROID
         builder.Services.AddSingleton<Watch.IWatchController, Platforms.Android.Watch.AndroidWatchController>();
         builder.Services.AddSingleton<VigiaHud.Core.Device.IDeviceStatusSource, Platforms.Android.Device.AndroidDeviceStatusSource>();

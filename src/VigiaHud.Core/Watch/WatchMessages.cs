@@ -21,7 +21,8 @@ public static class WatchMessages
         ArgumentNullException.ThrowIfNull(status);
         var battery = status.BatteryPercent is { } percent ? string.Create(CultureInfo.InvariantCulture, $"{percent}%") : "?";
         var temperature = status.BatteryTemperatureCelsius is { } celsius ? string.Create(CultureInfo.InvariantCulture, $"{celsius:0.0}C") : "?";
-        return $"uptime={FormatUptime(uptime)} battery={battery} plugged={(status.IsPluggedIn ? "yes" : "no")} temp={temperature}";
+        var exempt = status.IsBatteryOptimizationIgnored switch { true => "yes", false => "no", null => "?" };
+        return $"uptime={FormatUptime(uptime)} battery={battery} plugged={(status.IsPluggedIn ? "yes" : "no")} temp={temperature} doze_exempt={exempt}";
     }
 
     /// <summary>"6m", "1h02m", "2d01h03m": days only when there are days, hours only when there are hours.</summary>
