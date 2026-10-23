@@ -112,3 +112,32 @@
 - Conclusión: con la configuración de fábrica, ColorOS 7.1 mata la vigilancia al pasar el móvil a batería. El paso 5
   (exclusión de batería y ajustes de ColorOS) es obligatorio, y el juez tiene que incluir desenchufar y volver a
   enchufar el móvil.
+### Paso 5 — Permisos y ajustes de ColorOS (2026-10-23)
+
+- App: `Device/IPhoneSetup` con `AndroidPhoneSetup` (DECISIONS 009): comprueba `isIgnoringBatteryOptimizations`,
+  pide la exclusión con el intent oficial (permiso `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` en el manifiesto) y abre
+  la ficha de la app en Ajustes. Panel MÓVIL en `WatchPage`: estado en rojo o verde, chips EXCLUIR DE BATERÍA y
+  AJUSTES DE LA APP; se refresca al volver de los diálogos del sistema (`Window.Resumed`). El servicio apunta al
+  arrancar `info battery optimization ignored=yes|no`.
+- `docs/MOVIL.md`: la guía con los nombres exactos de los menús del OPPO (ColorOS 7.1), encontrados a mano:
+  la exclusión de batería desde la app (`verificacion/2026-10-23-fase1-paso5-dialogo-bateria.png`), "Uso de la
+  batería > Ejecutar en segundo plano" en la ficha de la app (`...-coloros-segundo-plano.png`) y el inicio
+  automático, que no está en Ajustes sino en la app Gestor del teléfono > Permisos de privacidad > Aplicaciones de
+  inicio automático (`...-coloros-inicio-automatico.png`). El gestor de inicio no se puede abrir ni desde `adb` ni
+  desde la app (`oppo.permission.OPPO_COMPONENT_SAFE`). ColorOS tampoco deja `pm grant` ni `settings put` desde
+  `adb`.
+- Validado en el OPPO (`verificacion/2026-10-23-fase1-paso5-movil-antes.png` y `...-despues.png`): tras aceptar el
+  diálogo, `dumpsys deviceidle whitelist` incluye `com.vigiahud.app` y el panel pasa a verde. Con los tres ajustes
+  (exclusión de batería, "Ejecutar en segundo plano", inicio automático) se repitió la prueba que ayer mató el
+  servicio: cable desenchufado de las 05:57 a las 07:12 UTC (1 h 15 min, pantalla apagada). Registro continuo:
+  una línea `capture` por minuto, todas `frames=30 failed=0` (una de 31 en 62 s), latidos cada 10 min con
+  `plugged=no` y batería del 95 % al 86 % (unos 7 % por hora con la cámara en marcha), sin `error`, sin reinicio y
+  sin `am_kill` en el registro de eventos. `dotnet build` 0 avisos, `dotnet test` 51 tests.
+- Pendiente de probar: el candado en recientes y "limpiar todo" (el servicio no depende de la tarea, pero conviene
+  comprobarlo en el juez de 24 h).
+
+## Siguiente
+
+- Paso 6: el juez de 24 h. Script en el PC que lee el registro extraído con `adb` y saca el hueco máximo entre
+  líneas `capture`, reinicios, errores y la batería y temperatura mínima y máxima. La vigilancia que corre desde las
+  05:42 UTC del 2026-10-23 con la versión y los ajustes finales de este paso es la que se juzga.

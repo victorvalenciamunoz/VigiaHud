@@ -28,7 +28,9 @@ Pulsa **AJUSTES DE LA APP** (abre "Información de la aplicación" de VigíaHud)
 | Ajuste | Dónde | Valor |
 |---|---|---|
 | Ejecutar en segundo plano | Ficha de la app > **Uso de la batería** | **Ejecutar en segundo plano** (no "Ejecución inteligente", que es la de fábrica y la que mató el servicio al desenchufar) |
-| Inicio automático | Gestor de inicio de ColorOS (en Ajustes, busca "Inicio automático"; la app no puede abrirlo) | Activado |
+| Inicio automático | App **Gestor del teléfono** (de OPPO) > **Permisos de privacidad** > **Aplicaciones de inicio automático** > VigíaHud. No está en Ajustes ni la app puede abrirlo (pide un permiso propio de OPPO). | Activado |
+
+![Gestor del teléfono > Permisos de privacidad](verificacion/2026-10-23-fase1-paso5-coloros-inicio-automatico.png)
 | Notificaciones | Ficha de la app > Notificaciones | Permitidas (la notificación permanente es lo que mantiene vivo el servicio) |
 | Cámara | Ficha de la app > Permisos | Permitida |
 
