@@ -17,6 +17,11 @@ Qué hace: con la app excluida, Android respeta su wake lock también en modo re
 apps "inactivas". Sin esto, el servicio puede quedarse sin CPU durante los periodos de reposo.
 
 Comprobación desde el PC: `adb shell dumpsys deviceidle whitelist | grep vigiahud`.
+
+**Se pierde al reiniciar el móvil** (visto el 2026-10-24: tras apagarse por batería y volver a encender, la
+exclusión había desaparecido). Después de cualquier reinicio, abre la app y, si el panel MÓVIL está en rojo, vuelve a
+pulsar EXCLUIR DE BATERÍA. La vigilancia sobrevive sin ella si están los ajustes de ColorOS del punto 2, pero con
+ella es más robusta.
 En el registro, al arrancar el servicio: `info battery optimization ignored=yes`.
 
 ## 2. Ajustes de la app en ColorOS

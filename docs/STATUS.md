@@ -181,10 +181,32 @@
   `dumpsys alarm`; una reinstalación con el servicio en marcha produce `update: service start requested` y
   `service started` en 7 s (receptor de `MY_PACKAGE_REPLACED`).
 
+### Juez de 24 h: PASA (2026-10-25)
+
+- Registro completo extraído: `verificacion/2026-10-25-0726-vigia.log` (3374 líneas). Informes del juez:
+  `2026-10-25-fase1-juez-completo.md`, `-hasta-bateria.md` y `-24h.md`.
+- **Hasta la batería** (2026-10-23 10:15 a 2026-10-24 03:11 UTC, 16 h 55 min): PASA. 1013 líneas `capture`, 30 394
+  frames, 0 fallos, hueco máximo 1 min 02 s, 0 errores, 0 reinicios. 84 de los 101 latidos sin cargador: el móvil
+  estuvo unas 14 h a batería, bajó al 1 % a la 01:47 UTC, aguantó así 1 h 24 min más y se apagó a las 03:11 UTC.
+  Temperatura de 19,8 °C (batería agotada) a 36,0 °C (cargando con la cámara en marcha). Consumo a batería: unos
+  5-6 % por hora con pantalla apagada y cámara a 15 fps.
+- **Tras volver a encender** (2026-10-24 07:22 UTC en adelante): el receptor de arranque pidió el servicio
+  (`boot: service start requested`, `service started` a las 07:22:48 UTC) sin tocar la app. A las 07:25 UTC del
+  2026-10-25: **1 día 0 h 02 min** sin interrupción, 1439 líneas `capture`, 43 177 frames, 0 fallos, hueco máximo
+  1 min 01 s, 0 errores, 0 reinicios, 143 latidos (37 sin cargador), batería 50-100 %, temperatura 23,8-31,0 °C.
+  Veredicto del juez: PASA.
+- Hallazgo: **la exclusión de la optimización de batería se pierde en el reinicio.** `doze_exempt=yes` desde el
+  arranque del 23 hasta el apagado; `ignored=no` en el arranque del 24 y en todos los latidos posteriores;
+  `dumpsys deviceidle whitelist` vacío. Es la causa más probable de las dos pérdidas del día 23 (la primera coincide
+  con una copia de seguridad; queda la duda). El servicio sobrevivió las 24 h sin ella, con "Ejecutar en segundo
+  plano" e inicio automático de ColorOS; pero sin la exclusión un reinicio sticky puede fallar (ver "Segunda muerte"),
+  por lo que el vigilante por alarma sigue siendo necesario. Apuntado en `docs/MOVIL.md`: tras un reinicio, abrir la
+  app y, si el panel MÓVIL está en rojo, volver a pulsar EXCLUIR DE BATERÍA. En la fase 2 el latido de Telegram
+  debería avisar de `doze_exempt=no`.
+- No se ha visto actuar al vigilante por alarma ni ha hecho falta: no hubo ninguna muerte del proceso.
+
 ## Siguiente
 
-- Juez definitivo de 24 h: la vigilancia arrancada por el receptor de arranque el 2026-10-23 a las 10:15:37 UTC, con
-  la versión del paso 7 (sin copia de seguridad, vigilante por alarma, `doze_exempt` en el latido) y los ajustes del
-  paso 5. Veredicto después de las 10:15 UTC del 2026-10-24: `scripts\judge-log.ps1 -From 2026-10-23T10:15Z`.
-  Si pasa, 72 h (hasta el 2026-10-26 10:15 UTC) y cierre de la fase 1.
-- Pendiente de entender qué quita la exclusión de la optimización de batería: mirar `doze_exempt` en los latidos.
+- Dejar la vigilancia hasta las 72 h (2026-10-27 07:22 UTC) y cerrar la fase 1 con el veredicto final.
+- Probar aparte (después de las 72 h) si la exclusión de batería se pierde en cualquier reinicio: ponerla, `adb
+  reboot`, comprobar.
