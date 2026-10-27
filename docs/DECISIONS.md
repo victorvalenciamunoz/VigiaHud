@@ -185,3 +185,31 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: `JobScheduler` periódico (descartado: mínimo 15 min y sin garantía de puntualidad en reposo);
   dos procesos que se vigilen mutuamente (descartado: ColorOS los mata juntos); confiar en el sticky (descartado:
   demostrado que falla).
+
+## 013 — Recuperar la cámara en cuanto quede libre, con la CPU sujeta mientras tanto
+- Contexto: el juez de 72 h (2026-10-27) falló por un solo incidente: el 2026-10-26 a las 21:02 UTC la app de
+  cámara de OPPO echó a VigíaHud de la cámara (se abrió al coger el móvil; la usó 3 s) y la vigilancia tardó 15 min
+  en recuperarla, aunque el código reabría a los 30 s. La historia de batería de Android (`dumpsys batterystats
+  --history`) muestra por qué: 10 s después de apagarse la pantalla no había ningún wake lock activo y la CPU entró
+  en sueño profundo. El wake lock del servicio no estaba registrado en el sistema (`dumpsys power` tampoco lo
+  mostraba al día siguiente, con el servicio vivo): algo lo quitó, probablemente ColorOS, con la app sin la exclusión
+  de batería desde el reinicio del 24. Durante tres días no se notó porque la cámara en marcha mantiene el móvil
+  despierto por sí sola. Sin cámara, los temporizadores de `Handler` (tiempo de CPU despierta) dejaron de avanzar:
+  la reapertura y las líneas `capture` solo progresaban en los despertares de la alarma del vigilante.
+- Decisión:
+  - `CameraCapturer` se suscribe a `CameraManager.AvailabilityCallback` y reabre en cuanto el servicio de cámara
+    avisa de que la cámara está libre; los 30 s quedan como respaldo. Al perderla toma un wake lock aparte
+    (`VigiaHud::CameraRecovery`, 2 min) que suelta al volver a tener el flujo. Que otra app tenga la cámara al
+    intentar abrir (`CAMERA_IN_USE`) es `info` ("camera busy with another app; waiting"), no `error`: solo la
+    expulsión cuenta como error en el registro.
+  - El wake lock principal se toma con límite (15 min) y se vuelve a pedir al sistema cada minuto, con cada línea
+    `capture`. Un `acquire` no contado llega siempre al sistema, así que lo recrea si alguien lo quitó.
+  - El vigilante por alarma (cada 10 min, la única forma de despertar una CPU dormida) también renueva el wake lock
+    y, si la cámara sigue perdida, la reabre en el acto.
+- Validado por `adb` (2026-10-27): con la app de cámara de OPPO abierta 4 s, la vigilancia recupera la cámara 0,2 s
+  después de que la suelte (antes, 30 s). El sueño profundo no se puede provocar con el cable USB conectado
+  (`dumpsys battery unplug` y `deviceidle force-idle` no bastan: el USB mantiene la CPU despierta); esa parte se
+  prueba desenchufando de verdad.
+- Alternativas: reabrir con una alarma exacta (`setExactAndAllowWhileIdle`) en vez de con el aviso del servicio de
+  cámara (descartado como vía principal: en Doze se retrasa hasta 9 min; queda el vigilante como red);
+  `FLAG_KEEP_SCREEN_ON` (plan B de `PLAN.md`; descartado mientras esto funcione).
