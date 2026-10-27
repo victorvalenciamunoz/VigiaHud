@@ -210,3 +210,29 @@
 - Dejar la vigilancia hasta las 72 h (2026-10-27 07:22 UTC) y cerrar la fase 1 con el veredicto final.
 - Probar aparte (después de las 72 h) si la exclusión de batería se pierde en cualquier reinicio: ponerla, `adb
   reboot`, comprobar.
+### Juez de 72 h: FALLA por la cámara (2026-10-27)
+
+- Registro: `verificacion/2026-10-27-1422-vigia.log` (7313 líneas). Informe: `2026-10-27-fase1-juez-72h.md`
+  (2026-10-24 07:22 a 2026-10-27 07:22 UTC, 3 días exactos). 4299 líneas `capture`, 128 831 frames, 1 arranque,
+  0 reinicios, 0 paradas; 148 de 430 latidos sin cargador (otra descarga a batería hasta el 9 %).
+- Todo perfecto salvo **un incidente**: el 2026-10-26 a las 21:02 UTC la app de cámara de OPPO echó a VigíaHud de la
+  cámara (`dumpsys media.camera`: `EVICT ... com.vigiahud.app`, la cámara de OPPO conectada de 21:02:13 a 21:02:16
+  UTC). Coincide con desenchufar el móvil: el acceso rápido a la cámara se abrió al cogerlo. La vigilancia no
+  recuperó la cámara hasta las 21:17:25 UTC: 3 huecos de 3 a 5 min entre líneas `capture` y 6 líneas con 0 frames.
+  Veredicto: FALLA. Causa y arreglo en DECISIONS 013: sin cámara la CPU se durmió porque el wake lock del servicio ya
+  no estaba en el sistema, y la reapertura dependía de un temporizador que no avanza con la CPU dormida.
+
+### Arreglo: recuperar la cámara (2026-10-27)
+
+- `CameraCapturer` reabre en cuanto la cámara queda libre (`AvailabilityCallback`), con un wake lock temporal
+  mientras tanto; el wake lock principal se renueva cada minuto; el vigilante por alarma lo renueva y reabre la
+  cámara si sigue perdida. Ocupada por otra app es `info`, no `error`.
+- Validado por `adb`: el wake lock vuelve a aparecer en `dumpsys power`; con la app de cámara de OPPO abierta 4 s, la
+  cámara vuelve a VigíaHud 0,2 s después de que la suelte; una sola línea `error` ("camera disconnected") por
+  expulsión. `dotnet build` 0 avisos, `dotnet test` 52 tests.
+
+## Siguiente
+
+- Probar el sueño profundo de verdad (el USB lo impide): desenchufar, abrir la cámara desde la pantalla de bloqueo,
+  cerrarla, dejar la pantalla apagada 10 min, volver a enchufar y comprobar que no hay huecos.
+- Juez de 72 h nuevo con esta versión. Si pasa, cerrar la fase 1.

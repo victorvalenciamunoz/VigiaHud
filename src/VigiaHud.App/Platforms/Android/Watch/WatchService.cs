@@ -10,7 +10,8 @@ namespace VigiaHud.App.Platforms.Android.Watch;
 
 /// <summary>
 /// The foreground service that is the watch (phase 1): a permanent notification so Android keeps the process,
-/// a partial wake lock so the CPU runs with the screen off, a frame from the camera every few seconds, and a line
+/// a partial wake lock so the CPU runs with the screen off (timed and renewed every minute: ColorOS was seen to drop
+/// one held for days, DECISIONS 013), a frame from the camera every few seconds, and a line
 /// in the log for every start, stop, failure, minute of captures and heartbeat (step 4). Core decides when each
 /// line is due (<see cref="WatchReporter"/>); this class only drives the camera and the clock. Sticky: if Android
 /// kills it anyway, it asks to be restarted. Fixed Java name so adb and the manifest refer to it without the hash.
@@ -25,8 +26,12 @@ public sealed class WatchService : Service
     private const string ChannelId = "watch";
     private const int MaxSnapshots = 200;
 
+    /// <summary>Long enough to outlast a missed minute or two, short enough that a forgotten lock dies on its own.</summary>
+    private static readonly TimeSpan WakeLockHold = TimeSpan.FromMinutes(15);
+
     private static readonly object Gate = new();
     private static bool _isRunning;
+    private static WatchService? _current;
 
     private readonly Handler _main = new(Looper.MainLooper!);
 
@@ -49,6 +54,30 @@ public sealed class WatchService : Service
     public static event EventHandler? RunningChanged;
 
     public override IBinder? OnBind(Intent? intent) => null;
+
+    /// <summary>
+    /// Called by the watchdog alarm, which wakes the CPU even from deep sleep: renew the wake lock and, if the camera
+    /// is lost, reopen it now. Handler timers count awake time only, so on a sleeping phone they may never fire.
+    /// </summary>
+    public static void CheckFromWatchdog()
+    {
+        var service = _current;
+        if (service is null)
+        {
+            return;
+        }
+
+        service._main.Post(() =>
+        {
+            if (!IsRunning)
+            {
+                return;
+            }
+
+            service.RenewWakeLock();
+            service._camera?.EnsureStreaming();
+        });
+    }
 
     public override StartCommandResult OnStartCommand(Intent? intent, StartCommandFlags flags, int startId)
     {
@@ -96,6 +125,7 @@ public sealed class WatchService : Service
                 StartCapturing();
                 // The alarm that outlives this process (DECISIONS 012): if we die and the sticky restart fails, it starts us again.
                 WatchdogReceiver.Schedule(this);
+                _current = this;
                 SetRunning(true);
             }
         }
@@ -118,6 +148,7 @@ public sealed class WatchService : Service
 
     public override void OnDestroy()
     {
+        _current = null;
         StopCapturing();
         ReleaseWakeLock();
         if (IsRunning)
@@ -195,6 +226,8 @@ public sealed class WatchService : Service
         if (tick.Report is { } report)
         {
             _log?.Write(LogKind.Capture, WatchMessages.Capture(report));
+            // Once a minute: re-register the wake lock with the system, in case something dropped it.
+            RenewWakeLock();
         }
 
         if (tick.Heartbeat)
@@ -252,7 +285,23 @@ public sealed class WatchService : Service
         var power = (PowerManager)GetSystemService(PowerService)!;
         _wakeLock = power.NewWakeLock(WakeLockFlags.Partial, "VigiaHud::WatchService");
         _wakeLock!.SetReferenceCounted(false);
-        _wakeLock.Acquire();
+        _wakeLock.Acquire((long)WakeLockHold.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// A non-counted acquire goes to the system every time, so this re-creates the lock there if it was dropped
+    /// (the object here still says "held" when that happens) and pushes the timeout forward.
+    /// </summary>
+    private void RenewWakeLock()
+    {
+        try
+        {
+            _wakeLock?.Acquire((long)WakeLockHold.TotalMilliseconds);
+        }
+        catch (Exception error)
+        {
+            _log?.Write(LogKind.Error, $"wake lock renew failed: {error.GetType().Name}: {error.Message}");
+        }
     }
 
     private void ReleaseWakeLock()

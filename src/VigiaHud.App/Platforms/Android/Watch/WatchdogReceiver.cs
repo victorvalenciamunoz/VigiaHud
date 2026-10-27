@@ -39,6 +39,8 @@ public sealed class WatchdogReceiver : BroadcastReceiver
         Schedule(context);
         if (WatchService.IsRunning)
         {
+            // Alive, but maybe asleep without its camera: this alarm is the one clock that runs on a sleeping phone.
+            WatchService.CheckFromWatchdog();
             return;
         }
 
