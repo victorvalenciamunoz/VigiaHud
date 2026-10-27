@@ -231,8 +231,21 @@
   cámara vuelve a VigíaHud 0,2 s después de que la suelte; una sola línea `error` ("camera disconnected") por
   expulsión. `dotnet build` 0 avisos, `dotnet test` 52 tests.
 
+- Prueba real desenchufado (2026-10-27, `verificacion/2026-10-27-fase1-prueba-desenchufado.md`): cable fuera de las
+  15:03:33 a las 15:11:09 UTC, la app de cámara de OPPO abierta dos veces y la galería, pantalla apagada desde las
+  15:04:55, reposo profundo (`device_idle=full`) desde las 15:05:56. La historia de batería de Android muestra el
+  fallo de fondo en directo: a las 15:09:55 el sistema quita el wake lock `VigiaHud::WatchService`, la renovación de
+  las 15:10:27 lo recupera y a los 2 s se lo vuelven a quitar (app sin la exclusión de batería). Aun así, **ningún
+  hueco**: una línea `capture` por minuto con 30 frames durante todo el corte, porque las cuatro expulsiones de la
+  cámara se recuperaron en 1-2 s y con el flujo en marcha el móvil no se duerme. El wake lock sigue registrado a los
+  24 min del arranque: la renovación cada minuto funciona (sin ella caducaba a los 15). Veredicto del juez: PASA con
+  avisos (las 5 expulsiones provocadas en las pruebas).
+- Riesgo que queda: perder la cámara con el móvil ya en reposo profundo (no por la app de cámara, que exige encender
+  la pantalla, sino por un fallo del propio hardware). Ahí el wake lock temporal también se perdería y la
+  recuperación dependería del vigilante por alarma (10 min, más lo que retrase Doze). Con la exclusión de batería
+  puesta no pasaría; la fase 2 debe avisar por Telegram de `doze_exempt=no`.
+
 ## Siguiente
 
-- Probar el sueño profundo de verdad (el USB lo impide): desenchufar, abrir la cámara desde la pantalla de bloqueo,
-  cerrarla, dejar la pantalla apagada 10 min, volver a enchufar y comprobar que no hay huecos.
-- Juez de 72 h nuevo con esta versión. Si pasa, cerrar la fase 1.
+- Juez de 72 h nuevo con esta versión: la vigilancia arrancó el 2026-10-27 a las 14:47:24 UTC; veredicto después de
+  las 14:47 UTC del 2026-10-30 con `scripts\judge-log.ps1 -From 2026-10-27T14:47Z`. Si pasa, cerrar la fase 1.
