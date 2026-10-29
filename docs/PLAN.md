@@ -1,6 +1,7 @@
 # Plan
 
-**Fase actual: 1**
+**Fase actual: 1** (esperando el veredicto del juez de 72 h; mientras tanto la fase 2 avanza solo en Core y tests,
+sin tocar el móvil: `DECISIONS.md` 015)
 
 ---
 

@@ -224,3 +224,27 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: al perder el cargador, encender la cámara a ratos en vez de tenerla siempre en marcha (descartado:
   multiplicaría la autonomía pero sin flujo de cámara ColorOS duerme el móvil, los temporizadores se paran y las
   alarmas se retrasan hasta 9 min en Doze, justo lo que tumbó el primer juez de 72 h; además vigilaría peor).
+
+## 015 — La fase 2 avanza en paralelo al juez de la fase 1, solo en Core y tests
+- Contexto: la fase 1 tiene todo el código hecho y solo espera el veredicto del juez de 72 h, que necesita tres días
+  sin reinstalar la app en el móvil. `PLAN.md` dice trabajar solo en la fase actual.
+- Decisión (del autor, 2026-10-29): empezar la fase 2 sin tocar el móvil, en Core y con tests, mientras corre el
+  juez. Nada de la fase 2 se instala hasta que el juez pase; si falla, se arregla primero la fase 1. La fase 2 se
+  divide en cinco pasos: 1 comandos y dueño; 2 cliente de Telegram, probado con respuestas reales grabadas; 3
+  reconexión con espera creciente; 4 latido diario y avisos de cargador y de exclusión de batería; 5 en el móvil, con
+  el juez de la fase 2. El latido diario sale a las **09:00 hora local**: por la mañana se confirma que ha pasado bien
+  la noche, que es cuando nadie mira.
+- Alternativas: esperar al veredicto y empezar la fase 2 con la 1 cerrada (descartado: tres días parados sin ganar
+  nada, porque lo de Core no puede romper el juez); latido a las 21:00 o a las 08:00.
+
+## 016 — Cliente de Telegram propio con HttpClient, sin paquete
+- Contexto: la fase 2 solo usa tres llamadas de la Bot API: `getUpdates` (long polling), `sendMessage` y
+  `sendPhoto`. Comprobado en la fuente el 2026-10-29: la Bot API (versión 10.3) acepta HTTPS con
+  `https://api.telegram.org/bot<token>/MÉTODO`, JSON o `multipart/form-data` para subir ficheros, y siempre responde
+  con un objeto con `ok` y `result` o `description` y `error_code`.
+- Decisión (del autor, 2026-10-29): un cliente propio en Core con el `HttpClient` de .NET y `System.Text.Json`,
+  detrás de una interfaz con implementación falsa para los tests y respuestas reales grabadas como fixtures (sin token
+  ni chat ID).
+- Alternativas: el paquete `Telegram.Bot` 22.10.3.3 (MIT, 10,8 millones de descargas, mantenido, Bot API 10.3;
+  descartado: 3 MB y tres dependencias para usar tres llamadas, en un móvil con poco espacio, y menos control de los
+  tiempos de espera del long polling, que importan para reconectar bien).

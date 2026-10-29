@@ -1,6 +1,7 @@
 # Estado
 
-**Fase actual: 1 — Que sobreviva** (en marcha). Ver `PLAN.md`.
+**Fase actual: 1 — Que sobreviva** (en marcha, esperando el veredicto del juez de 72 h). Ver `PLAN.md`.
+Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (DECISIONS 015): ver su sección al final.
 
 ## Hecho
 
@@ -263,3 +264,34 @@
   11:50 UTC, sin reinstalar (sigue la vigilancia de la versión de DECISIONS 013). Veredicto después de las 11:50 UTC
   del 2026-11-01 con `scripts\judge-log.ps1 -From 2026-10-29T11:50Z`; los latidos deben decir `plugged=yes` todo el
   tiempo. Si pasa, cerrar la fase 1 y llevar sus secciones a `docs/historia.md`.
+
+## Fase 2 — Telegram (en paralelo al juez de la fase 1, solo Core y tests)
+
+### Qué funciona
+
+- `VigiaHud.Core.Bot`: `IncomingMessage` (mensaje recibido: update, chat, texto, instante UTC), `BotCommand`
+  (`/foto`, `/estado`, `/ayuda` y `/start`, desconocido), `CommandParser` (lee el comando tal como lo mandan los
+  clientes de Telegram: con `@NombreDelBot`, con palabras detrás, en mayúsculas), `BotBrain` (decide: solo el chat del
+  dueño recibe respuesta; cualquier otro se ignora sin contestar y deja una línea de registro con el chat y la longitud
+  del texto, nunca el texto), `BotDecision` (ignorar, responder texto, mandar foto, mandar estado) y `BotTexts` (ayuda,
+  "no te entiendo", estado y pie de foto en español, con la hora en la zona local que se le pasa; el estado avisa si
+  falta la exclusión de batería).
+
+### Qué falta
+
+- [x] Paso 1 — Comandos y dueño (2026-10-29).
+- [ ] Paso 2 — Cliente de Telegram propio con `HttpClient` (`getUpdates` con long polling, `sendMessage`,
+  `sendPhoto`), probado con respuestas reales grabadas; hace falta crear el bot con @BotFather.
+- [ ] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte.
+- [ ] Paso 4 — Latido diario a las 09:00 hora local con el resumen, aviso de cargador desconectado y reconectado, y
+  aviso de exclusión de batería perdida.
+- [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
+  y el juez de la fase 2 (cortar el wifi del router 10 min).
+
+### Cómo se validó
+
+- Paso 1: 50 tests nuevos en `tests/VigiaHud.Core.Tests/Bot` (`CommandParserTests`, `BotBrainTests`,
+  `BotTextsTests`): comandos con y sin nombre del bot, mayúsculas y texto detrás; todo lo de un extraño ignorado y
+  registrado sin su texto; chat de grupo con ID negativo; textos exactos del estado con y sin datos, con aviso de
+  exclusión de batería; duraciones; "hoy", "ayer" y fechas en hora local con una zona de prueba fija. `dotnet build`
+  0 avisos (app incluida), `dotnet test` 102 tests.
