@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Time.Testing;
 using VigiaHud.Core.Bot;
 using VigiaHud.Core.Logging;
 using VigiaHud.Core.Telegram;
@@ -6,13 +5,17 @@ using VigiaHud.Core.Tests.Support;
 
 namespace VigiaHud.Core.Tests.Telegram;
 
+/// <summary>
+/// Each failed poll makes the loop wait on the clock, which is one timer: the tests wait for that timer before
+/// moving the clock (<see cref="SteppingClock"/>), so the order of events is fixed and nothing depends on luck.
+/// </summary>
 public sealed class TelegramPollerTests : IAsyncDisposable
 {
     private const long Owner = 111_222_333;
     private static readonly DateTimeOffset Start = new(2026, 10, 29, 10, 0, 0, TimeSpan.Zero);
     private static readonly TelegramUnavailableException NoNetwork = new("getUpdates: No such host is known.");
 
-    private readonly FakeTimeProvider _clock = new(Start);
+    private readonly SteppingClock _clock = new(Start);
     private readonly FakeTelegramClient _telegram = new();
     private readonly MemoryLog _log = new();
     private readonly CancellationTokenSource _stop = new();
@@ -21,7 +24,6 @@ public sealed class TelegramPollerTests : IAsyncDisposable
     private Func<IncomingMessage, Task> _onMessage = _ => Task.CompletedTask;
     private Func<Outage, Task> _onReconnected = _ => Task.CompletedTask;
     private Task? _run;
-    private TelegramPoller? _poller;
 
     public async ValueTask DisposeAsync()
     {
@@ -68,7 +70,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         for (var i = 0; i < expected.Length; i++)
         {
             await _telegram.WaitForPollsAsync(i + 1);
-            await NoPollUntilAsync(TimeSpan.FromSeconds(expected[i]), i + 2);
+            await NoPollUntilAsync(TimeSpan.FromSeconds(expected[i]), next: i + 2, timers: i + 1);
         }
     }
 
@@ -78,10 +80,8 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.FailsTimes(2, NoNetwork).Returns(UpdateBatch.Empty);
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
-        _clock.Advance(TimeSpan.FromSeconds(2));
-        await _telegram.WaitForPollsAsync(2);
-        _clock.Advance(TimeSpan.FromSeconds(4));
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 2, TimeSpan.FromSeconds(4));
         await _telegram.WaitForPollsAsync(4);
 
         Assert.Equal(
@@ -99,15 +99,12 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.FailsTimes(3, NoNetwork).Returns(UpdateBatch.Empty).Fails(NoNetwork);
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
-        _clock.Advance(TimeSpan.FromSeconds(2));
-        await _telegram.WaitForPollsAsync(2);
-        _clock.Advance(TimeSpan.FromSeconds(4));
-        await _telegram.WaitForPollsAsync(3);
-        _clock.Advance(TimeSpan.FromSeconds(8));
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 2, TimeSpan.FromSeconds(4));
+        await AdvanceAsync(timers: 3, TimeSpan.FromSeconds(8));
         await _telegram.WaitForPollsAsync(5);
 
-        await NoPollUntilAsync(TimeSpan.FromSeconds(2), 6);
+        await NoPollUntilAsync(TimeSpan.FromSeconds(2), next: 6, timers: 4);
     }
 
     [Fact]
@@ -116,9 +113,8 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(new TelegramApiException(429, "Too Many Requests: retry after 35", TimeSpan.FromSeconds(35)));
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
 
-        await NoPollUntilAsync(TimeSpan.FromSeconds(35), 2);
+        await NoPollUntilAsync(TimeSpan.FromSeconds(35), next: 2, timers: 1);
     }
 
     [Fact]
@@ -127,10 +123,10 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(new TelegramApiException(401, "Unauthorized", null));
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
+        await _clock.WaitForTimersAsync(1);
 
         Assert.Equal(LogKind.Error, Assert.Single(_log.Lines).Kind);
-        await NoPollUntilAsync(TelegramPoller.MaxRetry, 2);
+        await NoPollUntilAsync(TelegramPoller.MaxRetry, next: 2, timers: 1);
     }
 
     [Fact]
@@ -139,10 +135,10 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(new InvalidOperationException("The requested key was not present."));
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
+        await _clock.WaitForTimersAsync(1);
 
         Assert.Contains(_log.Lines, l => l.Kind == LogKind.Error && l.Message.Contains("InvalidOperationException"));
-        await NoPollUntilAsync(TelegramPoller.MaxRetry, 2);
+        await NoPollUntilAsync(TelegramPoller.MaxRetry, next: 2, timers: 1);
     }
 
     [Fact]
@@ -162,8 +158,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Returns(Batch(11, 10)).Returns(Batch(11, 10));
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
-        _clock.Advance(TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
         await _telegram.WaitForPollsAsync(3);
 
         Assert.Null(_telegram.Polls[1].Offset);
@@ -202,10 +197,8 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(NoNetwork).Returns(UpdateBatch.Empty).Returns(UpdateBatch.Empty);
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
-        _clock.Advance(TimeSpan.FromSeconds(2));
-        await _telegram.WaitForPollsAsync(2);
-        _clock.Advance(TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 2, TimeSpan.FromSeconds(2));
         await _telegram.WaitForPollsAsync(4);
 
         Assert.Equal(2, _reported.Count);
@@ -225,8 +218,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(NoNetwork).Returns(UpdateBatch.Empty).Returns(UpdateBatch.Empty);
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
-        _clock.Advance(TimeSpan.FromSeconds(2));
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
         await _telegram.WaitForPollsAsync(4);
 
         Assert.Equal(1, attempts);
@@ -239,7 +231,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
         _telegram.Fails(NoNetwork);
 
         Run();
-        await _telegram.WaitForPollsAsync(1);
+        await _clock.WaitForTimersAsync(1);
         await _stop.CancelAsync();
 
         await _run!.WaitAsync(TimeSpan.FromSeconds(5));
@@ -259,8 +251,8 @@ public sealed class TelegramPollerTests : IAsyncDisposable
 
     private void Run()
     {
-        _poller = new TelegramPoller(_telegram, _clock, _log);
-        _run = _poller.RunAsync(
+        var poller = new TelegramPoller(_telegram, _clock, _log);
+        _run = poller.RunAsync(
             async (message, _) =>
             {
                 lock (_handled) { _handled.Add(message.UpdateId); }
@@ -274,9 +266,17 @@ public sealed class TelegramPollerTests : IAsyncDisposable
             _stop.Token);
     }
 
-    /// <summary>Checks that poll number <paramref name="next"/> waits exactly <paramref name="wait"/> of simulated time.</summary>
-    private async Task NoPollUntilAsync(TimeSpan wait, int next)
+    /// <summary>Once the loop waits on its <paramref name="timers"/>-th timer, moves the clock by <paramref name="by"/>.</summary>
+    private async Task AdvanceAsync(int timers, TimeSpan by)
     {
+        await _clock.WaitForTimersAsync(timers);
+        _clock.Advance(by);
+    }
+
+    /// <summary>Checks that poll number <paramref name="next"/> comes exactly <paramref name="wait"/> after the loop starts waiting.</summary>
+    private async Task NoPollUntilAsync(TimeSpan wait, int next, int timers)
+    {
+        await _clock.WaitForTimersAsync(timers);
         _clock.Advance(wait - TimeSpan.FromMilliseconds(1));
         await Task.Delay(50);
         Assert.Equal(next - 1, _telegram.Polls.Count);
