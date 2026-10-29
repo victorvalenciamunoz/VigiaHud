@@ -213,3 +213,14 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: reabrir con una alarma exacta (`setExactAndAllowWhileIdle`) en vez de con el aviso del servicio de
   cámara (descartado como vía principal: en Doze se retrasa hasta 9 min; queda el vigilante como red);
   `FLAG_KEEP_SCREEN_ON` (plan B de `PLAN.md`; descartado mientras esto funcione).
+
+## 014 — Sin modo ahorro: la cámara siempre en marcha también a batería
+- Contexto: medido el 2026-10-28 y 29, la vigilancia gasta 8-9 % de batería por hora (unos 320 mA de media; Android
+  atribuye casi el 90 % del gasto a la cámara de VigíaHud). Desde el 100 % aguanta unas 11-12 h sin cargador. La
+  batería del OPPO está sana (5000 mAh declarados, descarga real coherente).
+- Decisión (del autor, 2026-10-29): se deja así. El móvil vive enchufado y la batería solo cuenta en un corte de luz;
+  la fase 2 avisará por Telegram al perder el cargador, así que el dueño sabrá que quedan unas horas. No se añade un
+  modo ahorro al plan.
+- Alternativas: al perder el cargador, encender la cámara a ratos en vez de tenerla siempre en marcha (descartado:
+  multiplicaría la autonomía pero sin flujo de cámara ColorOS duerme el móvil, los temporizadores se paran y las
+  alarmas se retrasan hasta 9 min en Doze, justo lo que tumbó el primer juez de 72 h; además vigilaría peor).
