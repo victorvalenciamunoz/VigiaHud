@@ -78,13 +78,13 @@ public class BotTextsTests
     {
         var plan = new HeartbeatPlan(Now, false, Now);
 
-        var text = BotTexts.DailyHeartbeat(new DeviceStatus(100, true, 27.5, true), TimeSpan.FromHours(76), [], plan, Zone);
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(100, true, 27.5, true), TimeSpan.FromHours(76), [], [], plan, Zone);
 
         Assert.Equal(
             "Sigo vivo.\n" +
             "Vigilando desde hace 3 d 4 h.\n" +
             "Batería 100 %, enchufado, 27,5 °C.\n" +
-            "Últimas 24 h: sin cortes de conexión.",
+            "Últimas 24 h: sin cortes de conexión ni de corriente.",
             text);
     }
 
@@ -99,13 +99,13 @@ public class BotTextsTests
             new(Now.AddHours(-2), Now.AddHours(-2).AddMinutes(10), 9, "x"),
         ];
 
-        var text = BotTexts.DailyHeartbeat(new DeviceStatus(70, false, 24.0, false), TimeSpan.FromMinutes(90), outages, plan, Zone);
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(70, false, 24.0, false), TimeSpan.FromMinutes(90), outages, [], plan, Zone);
 
         Assert.Equal(
             "Sigo vivo (con retraso: a las 09:00 no pude).\n" +
             "Vigilando desde hace 1 h 30 min.\n" +
             "Batería 70 %, sin cargador, 24,0 °C.\n" +
-            "Últimas 24 h: 2 cortes de conexión, 14 min en total.\n" +
+            "Últimas 24 h: 2 cortes de conexión, 14 min en total; sin cortes de corriente.\n" +
             BotTexts.DozeWarning,
             text);
     }
@@ -115,10 +115,51 @@ public class BotTextsTests
     {
         Outage[] outages = [new(Now.AddHours(-1), Now.AddHours(-1).AddMinutes(12), 7, "x")];
 
-        var text = BotTexts.DailyHeartbeat(new DeviceStatus(90, true, 25.0, true), TimeSpan.FromHours(30), outages, new HeartbeatPlan(Now, false, Now), Zone);
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(90, true, 25.0, true), TimeSpan.FromHours(30), outages, [], new HeartbeatPlan(Now, false, Now), Zone);
 
-        Assert.Contains("Últimas 24 h: 1 corte de conexión, de 12 min.", text);
+        Assert.Contains("Últimas 24 h: 1 corte de conexión, de 12 min; sin cortes de corriente.", text);
     }
+
+    [Fact]
+    public void Short_power_cuts_appear_in_the_summary_too()
+    {
+        PowerCut[] cuts = [new(Now.AddHours(-3), Now.AddHours(-3).AddMinutes(4))];
+
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(95, true, 25.0, true), TimeSpan.FromHours(30), [], cuts, new HeartbeatPlan(Now, false, Now), Zone);
+
+        Assert.Contains("Últimas 24 h: sin cortes de conexión; 1 corte de corriente, de 4 min.", text);
+    }
+
+    [Fact]
+    public void Power_lost_says_since_when_the_battery_and_the_rough_margin()
+    {
+        var since = new DateTimeOffset(2026, 10, 29, 2, 12, 0, TimeSpan.Zero); // 03:12 local
+
+        Assert.Equal(
+            "Sin corriente desde hoy a las 03:12: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 9 h de margen.",
+            BotTexts.PowerLost(new PowerNotice.Lost(since, 84), Now, Zone));
+    }
+
+    [Fact]
+    public void Power_lost_without_a_battery_reading_leaves_the_margin_out()
+    {
+        var since = new DateTimeOffset(2026, 10, 29, 2, 12, 0, TimeSpan.Zero);
+
+        Assert.EndsWith("se ha ido la luz.", BotTexts.PowerLost(new PowerNotice.Lost(since, null), Now, Zone));
+    }
+
+    [Fact]
+    public void Power_back_says_how_long_and_the_battery() =>
+        Assert.Equal(
+            "Vuelve la corriente. Estuvo 1 h 20 min sin cargador; batería al 72 %.",
+            BotTexts.PowerBack(new PowerNotice.Back(new PowerCut(Now, Now.AddMinutes(80)), 72)));
+
+    [Theory]
+    [InlineData(15, "Batería al 15 % y sin cargador: me apagaré en unas 2 h.")]
+    [InlineData(9, "Batería al 9 % y sin cargador: me apagaré en 1 h aproximadamente.")]
+    [InlineData(3, "Batería al 3 % y sin cargador: me apagaré en menos de 1 h.")]
+    public void Low_battery_says_roughly_when_the_phone_will_die(int percent, string expected) =>
+        Assert.Equal(expected, BotTexts.LowBattery(new PowerNotice.LowBattery(percent)));
 
     [Fact]
     public void Photo_caption_is_the_local_time() =>

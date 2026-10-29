@@ -144,6 +144,40 @@ public sealed class BotRunnerTests : IAsyncDisposable
         Assert.StartsWith("(Con retraso: es de hoy a las 09:00.)\nSigo vivo.", _telegram.Sent[0].Text);
     }
 
+    [Fact]
+    public async Task Ten_minutes_without_charger_bring_the_power_notice_with_the_margin()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _environment.Device = new DeviceStatus(84, false, 25.0, true);
+
+        Run();
+        for (var minute = 1; minute <= 10; minute++)
+        {
+            await _clock.WaitForTimersAsync(minute);
+            Assert.Empty(_telegram.Sent);
+            _clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        await SentAsync(1);
+        Assert.Equal(
+            "Sin corriente desde hoy a las 13:00: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 9 h de margen.",
+            _telegram.Sent[0].Text);
+        Assert.Contains(_log.Lines, l => l.Message.StartsWith("power: unplugged since", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_lost_exemption_is_told_as_soon_as_the_bot_starts()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _environment.Device = new DeviceStatus(87, true, 31.2, false);
+
+        Run();
+        await SentAsync(1);
+
+        Assert.Equal(BotTexts.DozeWarning, _telegram.Sent[0].Text);
+        Assert.Contains(_log.Lines, l => l.Message == "power: battery optimization exemption lost");
+    }
+
     [Theory]
     [InlineData(299, false)]
     [InlineData(300, true)]
@@ -181,7 +215,9 @@ public sealed class BotRunnerTests : IAsyncDisposable
 
         public byte[]? Photo { get; set; } = [0xFF, 0xD8, 0xFF, 0xD9];
 
-        public DeviceStatus ReadDevice() => new(87, true, 31.2, true);
+        public DeviceStatus Device { get; set; } = new(87, true, 31.2, true);
+
+        public DeviceStatus ReadDevice() => Device;
 
         public Task<byte[]?> TakePhotoAsync(CancellationToken cancellationToken) => Task.FromResult(Photo);
     }

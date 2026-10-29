@@ -303,3 +303,17 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: avisar del cargador al momento o a los 2 min, latido solo a su hora o saltarlo, sin margen estimado,
   avisar de todos los cortes de conexión o solo de los de 10 min o más (todas valoradas con el autor); guardar la
   cola en disco (descartado por ahora: más código y escrituras para un caso raro que el registro ya cubre).
+
+## 020 — Los avisos de corriente salen de mirar el móvil cada minuto
+- Contexto: la parte 4.2 de la fase 2 (avisos de corriente, batería baja y exclusión de batería, DECISIONS 019).
+  Android avisa al conectar y desconectar el cargador (`ACTION_POWER_CONNECTED` y `ACTION_POWER_DISCONNECTED`), pero
+  desde Android 8 esos avisos solo llegan a quien se suscribe mientras está en marcha, no por el manifiesto.
+- Decisión: `PowerWatch` en Core decide a partir de lecturas del estado del móvil que el reloj de `BotRunner` toma
+  al menos cada minuto (la misma lectura de batería del latido, `ACTION_BATTERY_CHANGED`). Un aviso puede salir hasta
+  un minuto tarde, que con un umbral de 10 min no importa, y no hace falta ningún receptor más en la app. El margen
+  de batería es el porcentaje entre el 9 % por hora medido, redondeado a horas ("unas 9 h", "1 h aproximadamente",
+  "menos de 1 h"): un modelo simple a propósito, que puede fallar en una hora o dos. Un corte de corriente va del
+  primer minuto que se ve sin cargador al primero que se ve con él.
+- Alternativas: suscribirse a los avisos de cargador de Android (descartado: más código de plataforma para ganar
+  como mucho un minuto en un aviso que espera 10); estimar el margen con la descarga reciente medida en el propio
+  móvil (descartado por ahora: más complejo y la cifra fija ya da el orden de magnitud).

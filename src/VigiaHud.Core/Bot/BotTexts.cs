@@ -46,32 +46,78 @@ public static class BotTexts
     public const string CameraNotReady = "Ahora no puedo hacer la foto: la cámara no está lista. Prueba otra vez en un minuto.";
 
     /// <summary>
-    /// The daily "sigo vivo" (PLAN, phase 2): time watching, battery, and what happened in the last 24 hours. A late
-    /// one says so and which hour it was meant for (DECISIONS 019).
+    /// The daily "sigo vivo" (PLAN, phase 2): time watching, battery, and the cuts of the last 24 hours, connection
+    /// and power, short ones included. A late one says so and which hour it was meant for (DECISIONS 019).
     /// </summary>
-    public static string DailyHeartbeat(DeviceStatus device, TimeSpan watching, IReadOnlyCollection<Telegram.Outage> outagesLastDay, HeartbeatPlan plan, TimeZoneInfo zone)
+    public static string DailyHeartbeat(
+        DeviceStatus device,
+        TimeSpan watching,
+        IReadOnlyCollection<Telegram.Outage> outagesLastDay,
+        IReadOnlyCollection<PowerCut> powerCutsLastDay,
+        HeartbeatPlan plan,
+        TimeZoneInfo zone)
     {
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(outagesLastDay);
+        ArgumentNullException.ThrowIfNull(powerCutsLastDay);
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(zone);
 
         var due = TimeZoneInfo.ConvertTime(plan.DueAt, zone);
+        var connection = Cuts("conexión", [.. outagesLastDay.Select(o => o.Duration)]);
+        var power = Cuts("corriente", [.. powerCutsLastDay.Select(c => c.Duration)]);
         var lines = new List<string>
         {
             plan.Late ? string.Create(Spanish, $"Sigo vivo (con retraso: a las {due:HH:mm} no pude).") : "Sigo vivo.",
             $"Vigilando desde hace {Duration(watching)}.",
             Battery(device),
-            outagesLastDay.Count switch
-            {
-                0 => "Últimas 24 h: sin cortes de conexión.",
-                1 => $"Últimas 24 h: 1 corte de conexión, de {Duration(outagesLastDay.First().Duration)}.",
-                var n => $"Últimas 24 h: {n} cortes de conexión, {Duration(TimeSpan.FromTicks(outagesLastDay.Sum(o => o.Duration.Ticks)))} en total.",
-            },
+            outagesLastDay.Count == 0 && powerCutsLastDay.Count == 0
+                ? "Últimas 24 h: sin cortes de conexión ni de corriente."
+                : $"Últimas 24 h: {connection}; {power}.",
         };
         AddDozeWarning(lines, device);
         return string.Join('\n', lines);
     }
+
+    /// <summary>"Sin corriente desde hoy a las 03:12: …" with the battery and the rough margin left.</summary>
+    public static string PowerLost(PowerNotice.Lost notice, DateTimeOffset now, TimeZoneInfo zone)
+    {
+        ArgumentNullException.ThrowIfNull(notice);
+        ArgumentNullException.ThrowIfNull(zone);
+        var battery = notice.BatteryPercent is { } percent
+            ? $" Batería al {percent} %, {Margin(percent)} de margen."
+            : string.Empty;
+        return $"Sin corriente desde {Moment(notice.Since, now, zone)}: se ha desenchufado el cargador o se ha ido la luz.{battery}";
+    }
+
+    public static string PowerBack(PowerNotice.Back notice)
+    {
+        ArgumentNullException.ThrowIfNull(notice);
+        var battery = notice.BatteryPercent is { } percent ? $"; batería al {percent} %" : string.Empty;
+        return $"Vuelve la corriente. Estuvo {Duration(notice.Cut.Duration)} sin cargador{battery}.";
+    }
+
+    public static string LowBattery(PowerNotice.LowBattery notice)
+    {
+        ArgumentNullException.ThrowIfNull(notice);
+        return $"Batería al {notice.BatteryPercent} % y sin cargador: me apagaré en {Margin(notice.BatteryPercent)}.";
+    }
+
+    /// <summary>"unas 9 h", "1 h aproximadamente", "menos de 1 h": a rough figure said as one.</summary>
+    private static string Margin(int batteryPercent) => PowerWatch.HoursLeft(batteryPercent) switch
+    {
+        0 => "menos de 1 h",
+        1 => "1 h aproximadamente",
+        var hours => $"unas {hours} h",
+    };
+
+    /// <summary>"sin cortes de corriente", "1 corte de corriente, de 4 min", "2 cortes de corriente, 1 h 10 min en total".</summary>
+    private static string Cuts(string what, IReadOnlyList<TimeSpan> lengths) => lengths.Count switch
+    {
+        0 => $"sin cortes de {what}",
+        1 => $"1 corte de {what}, de {Duration(lengths[0])}",
+        var n => $"{n} cortes de {what}, {Duration(TimeSpan.FromTicks(lengths.Sum(l => l.Ticks)))} en total",
+    };
 
     /// <summary>"Batería 87 %, enchufado, 31,2 °C."</summary>
     private static string Battery(DeviceStatus device)

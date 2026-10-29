@@ -34,6 +34,7 @@ public sealed class BotRunner
     private readonly TelegramPoller _poller;
     private readonly DailyHeartbeatSchedule _schedule;
     private readonly List<Outage> _outages = [];
+    private readonly PowerWatch _power = new();
 
     public BotRunner(
         ITelegramClient client,
@@ -62,7 +63,7 @@ public sealed class BotRunner
         Outbox = new Outbox(client, ownerChatId, clock, log, environment.Zone);
     }
 
-    /// <summary>Where notices wait for the network; part 2 of step 4 adds the power and battery ones here.</summary>
+    /// <summary>Where the bot's own messages wait for the network: heartbeat, outage, power and battery notices.</summary>
     public Outbox Outbox { get; }
 
     /// <summary>Runs both loops until cancelled; never ends on its own.</summary>
@@ -136,7 +137,10 @@ public sealed class BotRunner
         return outage.Duration >= MinOutageToNotify;
     }
 
-    /// <summary>Writes the daily heartbeat when due and sends what waits in the outbox, waking at least every minute.</summary>
+    /// <summary>
+    /// Once a minute at least: looks at the phone for power and battery notices, writes the daily heartbeat when due,
+    /// and sends what waits in the outbox.
+    /// </summary>
     private async Task ClockAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -145,10 +149,16 @@ public sealed class BotRunner
             try
             {
                 var now = _clock.GetUtcNow();
+                var device = _environment.ReadDevice();
+                foreach (var notice in _power.Observe(device, now))
+                {
+                    Tell(notice, now);
+                }
+
                 var plan = _schedule.Plan(now, _memory.LastDailyHeartbeat);
                 if (plan.SendAt <= now)
                 {
-                    Outbox.Enqueue(BotTexts.DailyHeartbeat(_environment.ReadDevice(), _environment.WatchingFor, OutagesSince(now - Day), plan, _environment.Zone));
+                    Outbox.Enqueue(BotTexts.DailyHeartbeat(device, _environment.WatchingFor, OutagesSince(now - Day), _power.CutsSince(now - Day), plan, _environment.Zone));
                     _memory.LastDailyHeartbeat = now;
                     _log.Write(LogKind.Info, plan.Late ? "telegram: daily heartbeat written (late)" : "telegram: daily heartbeat written");
                 }
@@ -181,6 +191,22 @@ public sealed class BotRunner
                 return;
             }
         }
+    }
+
+    /// <summary>Queues a power notice for the owner and leaves a line in the log, which outlives the queue.</summary>
+    private void Tell(PowerNotice notice, DateTimeOffset now)
+    {
+        var (text, line) = notice switch
+        {
+            PowerNotice.Lost lost => (BotTexts.PowerLost(lost, now, _environment.Zone), $"power: unplugged since {lost.Since:yyyy-MM-ddTHH:mm:ssZ}, battery {lost.BatteryPercent}%"),
+            PowerNotice.Back back => (BotTexts.PowerBack(back), $"power: back after {back.Cut.Duration.TotalMinutes:0} min, battery {back.BatteryPercent}%"),
+            PowerNotice.LowBattery low => (BotTexts.LowBattery(low), $"power: battery low, {low.BatteryPercent}% without charger"),
+            PowerNotice.DozeExemptionLost => (BotTexts.DozeWarning, "power: battery optimization exemption lost"),
+            _ => throw new InvalidOperationException($"Unknown notice {notice.GetType().Name}"),
+        };
+
+        Outbox.Enqueue(text);
+        _log.Write(LogKind.Info, line);
     }
 
     private List<Outage> OutagesSince(DateTimeOffset since)
