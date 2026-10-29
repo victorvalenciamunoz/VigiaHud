@@ -284,6 +284,14 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   (Telegram contestó con un error: código, descripción y `retry_after` si lo hay) y `TelegramUnavailableException`
   (sin red, sin respuesta a tiempo o una respuesta que no es de la Bot API). El token nunca aparece en un mensaje de
   error. Una cancelación desde fuera sigue siendo cancelación.
+- `TelegramPoller` (DECISIONS 018): el bucle que mantiene al bot escuchando y no se rinde nunca. Entrega los
+  mensajes en orden y solo los da por recibidos cuando están contestados: si contestar falla por falta de red, el
+  mensaje vuelve a llegar. Sin Telegram espera 2 s, 4, 8… hasta 5 min, o lo que pida Telegram (`retry_after`); un
+  token rechazado o un error inesperado esperan 5 min y se apuntan como `error`. Cada corte deja dos líneas en el
+  registro (`telegram: offline (motivo)` y `telegram: online again after N s (M failed polls)`) y se entrega como
+  `Outage` (inicio, fin, intentos, motivo) para avisar al dueño; si el aviso no sale por falta de red, se repite tras
+  el siguiente corte. `BotTexts.Reconnected`: "Vuelvo a tener conexión. Estuve 12 min sin poder hablar con Telegram,
+  desde hoy a las 11:00."
 - En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
   dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
   graba respuestas reales de la Bot API con los datos personales sustituidos.
@@ -292,7 +300,8 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
 
 - [x] Paso 1 — Comandos y dueño (2026-10-29).
 - [x] Paso 2 — Cliente de Telegram propio con `HttpClient`, probado con respuestas reales grabadas (2026-10-29).
-- [ ] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte.
+- [x] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte
+  (2026-10-29).
 - [ ] Paso 4 — Latido diario a las 09:00 hora local con el resumen, aviso de cargador desconectado y reconectado, y
   aviso de exclusión de batería perdida.
 - [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
@@ -317,3 +326,11 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   toma "bot123" por protocolo y descarta la dirección de Telegram; la dirección se monta ahora como texto.
   Prueba de extremo a extremo con el bot real (script desechable): el cliente de Core lee, envía el texto y la foto
   y recibe el 401 con un token falso. `dotnet build` 0 avisos (app incluida), `dotnet test` 126 tests.
+- Paso 3: 14 tests nuevos en `TelegramPollerTests`, con el reloj simulado (`FakeTimeProvider`), un Telegram de guion
+  (`Support/FakeTelegramClient`) y un registro en memoria (`Support/MemoryLog`): orden de los mensajes y offset;
+  offset que avanza con lo que no es mensaje; esperas 2, 4, 8… 256, 300, 300 s comprobadas al milisegundo; las dos
+  líneas de un corte y su `Outage`; vuelta a 2 s tras reconectar; `retry_after`; token rechazado como error con 5 min;
+  error inesperado sin salir del bucle; mensaje que vuelve si contestar falla por la red y que se salta si falla por
+  un fallo nuestro; aviso de corte repetido tras otro corte o descartado si el fallo no es de red; cancelación limpia;
+  texto de reconexión. `dotnet build` 0 avisos (app incluida), `dotnet test` 140 tests (tres pasadas seguidas).
+  Sin prueba de red real: la da el juez de la fase 2 en el móvil (paso 5).
