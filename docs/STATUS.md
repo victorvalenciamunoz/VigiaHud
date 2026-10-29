@@ -292,6 +292,20 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   `Outage` (inicio, fin, intentos, motivo) para avisar al dueño; si el aviso no sale por falta de red, se repite tras
   el siguiente corte. `BotTexts.Reconnected`: "Vuelvo a tener conexión. Estuve 12 min sin poder hablar con Telegram,
   desde hoy a las 11:00."
+- Latido diario y cola de salida (DECISIONS 019):
+  - `DailyHeartbeatSchedule` decide cuándo toca el "sigo vivo" de las 09:00 en la zona del móvil, con el cambio de
+    hora; si uno no pudo salir a su hora sale en cuanto se puede, marcado como tardío. Una instalación nueva no debe
+    nada hasta las 09:00 siguientes.
+  - `Outbox` guarda en orden lo que el bot dice por su cuenta hasta que sale; si sale más de 2 min tarde dice de
+    cuándo es ("(Con retraso: es de hoy a las 09:00.)"); máximo 50 mensajes.
+  - `BotRunner` es el bot entero para la app: el bucle de Telegram contesta los comandos directamente (`/foto`,
+    `/estado`, `/ayuda`) y el reloj, que se despierta al menos cada minuto y mira la hora real, escribe el latido y
+    vacía la cola. Avisa al volver solo de los cortes de 5 min o más; todos cuentan en el resumen del latido.
+    `IBotEnvironment` (zona, tiempo vigilando, estado del móvil, foto) y `IBotMemory` (último latido, que debe
+    sobrevivir a reinicios) los dará la app en el paso 5.
+  - Textos nuevos en `BotTexts`: `DailyHeartbeat` ("Sigo vivo." o "Sigo vivo (con retraso: a las 09:00 no pude).",
+    tiempo vigilando, batería, cortes de las últimas 24 h y el aviso de exclusión de batería si falta) y
+    `CameraNotReady`.
 - En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
   dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
   graba respuestas reales de la Bot API con los datos personales sustituidos.
@@ -302,8 +316,10 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
 - [x] Paso 2 — Cliente de Telegram propio con `HttpClient`, probado con respuestas reales grabadas (2026-10-29).
 - [x] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte
   (2026-10-29).
-- [ ] Paso 4 — Latido diario a las 09:00 hora local con el resumen, aviso de cargador desconectado y reconectado, y
-  aviso de exclusión de batería perdida.
+- [ ] Paso 4 — Mensajes por su cuenta (DECISIONS 019), en dos partes:
+  - [x] 4.1 Latido diario a las 09:00 con el resumen, con retraso si hace falta, y cola de salida (2026-10-29).
+  - [ ] 4.2 Avisos de corriente perdida (a los 10 min, con el margen estimado) y recuperada, batería baja al 15 % y
+    exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido.
 - [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
   y el juez de la fase 2 (cortar el wifi del router 10 min).
 
@@ -334,3 +350,14 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   un fallo nuestro; aviso de corte repetido tras otro corte o descartado si el fallo no es de red; cancelación limpia;
   texto de reconexión. `dotnet build` 0 avisos (app incluida), `dotnet test` 140 tests (tres pasadas seguidas).
   Sin prueba de red real: la da el juez de la fase 2 en el móvil (paso 5).
+- Paso 4.1: 29 tests nuevos. `DailyHeartbeatScheduleTests` con una zona genérica con horario de verano: antes y
+  después de las 09:00, a su hora con medio minuto de margen, latido perdido hoy o ayer, instalación nueva, las 09:00
+  locales a ambos lados del cambio de hora de octubre y una hora que no existe en marzo. `OutboxTests`: orden, sin
+  red se queda para la próxima, un mensaje rechazado para siempre no atasca la cola, nota de retraso solo a partir de
+  2 min, capacidad. `BotRunnerTests` con el bot entero y un Telegram de guion: `/estado`, `/foto` con y sin cámara,
+  extraño ignorado, latido a las 09:00 en punto y recordado, latido perdido enviado al arrancar como tardío, latido
+  sin red que sale a los 3 min con la nota de retraso, y el umbral de 5 min de los avisos de corte. `BotTextsTests`:
+  los textos del latido. Un test del bucle de Telegram falló una vez de cada muchas: adelantaba el reloj simulado
+  antes de que el bucle empezara a esperar. `Support/SteppingClock` avisa cuando alguien espera y los tests solo
+  adelantan después; cinco pasadas seguidas sin fallos. `dotnet build` 0 avisos (app incluida), `dotnet test` 169
+  tests.

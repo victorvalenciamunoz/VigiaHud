@@ -29,6 +29,53 @@ public static class BotTexts
         ArgumentNullException.ThrowIfNull(device);
         ArgumentNullException.ThrowIfNull(zone);
 
+        var lines = new List<string>
+        {
+            $"Vigilando desde hace {Duration(watching)}.",
+            Battery(device),
+            lastDailyHeartbeat is { } beat
+                ? $"Último latido diario: {Moment(beat, now, zone)}."
+                : "Último latido diario: todavía ninguno.",
+        };
+        AddDozeWarning(lines, device);
+        return string.Join('\n', lines);
+    }
+
+    public const string DozeWarning = "Ojo: Android puede dormir la vigilancia. Abre la app y pulsa EXCLUIR DE BATERÍA.";
+
+    public const string CameraNotReady = "Ahora no puedo hacer la foto: la cámara no está lista. Prueba otra vez en un minuto.";
+
+    /// <summary>
+    /// The daily "sigo vivo" (PLAN, phase 2): time watching, battery, and what happened in the last 24 hours. A late
+    /// one says so and which hour it was meant for (DECISIONS 019).
+    /// </summary>
+    public static string DailyHeartbeat(DeviceStatus device, TimeSpan watching, IReadOnlyCollection<Telegram.Outage> outagesLastDay, HeartbeatPlan plan, TimeZoneInfo zone)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+        ArgumentNullException.ThrowIfNull(outagesLastDay);
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(zone);
+
+        var due = TimeZoneInfo.ConvertTime(plan.DueAt, zone);
+        var lines = new List<string>
+        {
+            plan.Late ? string.Create(Spanish, $"Sigo vivo (con retraso: a las {due:HH:mm} no pude).") : "Sigo vivo.",
+            $"Vigilando desde hace {Duration(watching)}.",
+            Battery(device),
+            outagesLastDay.Count switch
+            {
+                0 => "Últimas 24 h: sin cortes de conexión.",
+                1 => $"Últimas 24 h: 1 corte de conexión, de {Duration(outagesLastDay.First().Duration)}.",
+                var n => $"Últimas 24 h: {n} cortes de conexión, {Duration(TimeSpan.FromTicks(outagesLastDay.Sum(o => o.Duration.Ticks)))} en total.",
+            },
+        };
+        AddDozeWarning(lines, device);
+        return string.Join('\n', lines);
+    }
+
+    /// <summary>"Batería 87 %, enchufado, 31,2 °C."</summary>
+    private static string Battery(DeviceStatus device)
+    {
         var battery = device.BatteryPercent is { } percent
             ? string.Create(Spanish, $"Batería {percent} %")
             : "Batería desconocida";
@@ -36,22 +83,15 @@ public static class BotTexts
         var temperature = device.BatteryTemperatureCelsius is { } celsius
             ? string.Create(Spanish, $", {celsius:0.0} °C")
             : string.Empty;
+        return $"{battery}, {charger}{temperature}.";
+    }
 
-        var lines = new List<string>
-        {
-            $"Vigilando desde hace {Duration(watching)}.",
-            $"{battery}, {charger}{temperature}.",
-            lastDailyHeartbeat is { } beat
-                ? $"Último latido diario: {Moment(beat, now, zone)}."
-                : "Último latido diario: todavía ninguno.",
-        };
-
+    private static void AddDozeWarning(List<string> lines, DeviceStatus device)
+    {
         if (device.IsBatteryOptimizationIgnored == false)
         {
-            lines.Add("Ojo: Android puede dormir la vigilancia. Abre la app y pulsa EXCLUIR DE BATERÍA.");
+            lines.Add(DozeWarning);
         }
-
-        return string.Join('\n', lines);
     }
 
     /// <summary>Said once the bot can talk again after an outage: how long it lasted and since when.</summary>

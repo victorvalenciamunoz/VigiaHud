@@ -281,3 +281,25 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: Polly.Core (encaja mejor que la de Microsoft, pero solo ahorra la parte fácil; el registro de cortes
   es código nuestro igualmente); Microsoft.Extensions.Http.Resilience (habría que desactivar casi toda su
   configuración estándar y meter inyección de dependencias de `HttpClient`).
+
+## 019 — Los mensajes que el bot manda por su cuenta
+- Contexto: paso 4 de la fase 2. `PLAN.md` pide el latido diario con resumen y los avisos de cargador; en un corte de
+  luz el router también se apaga, así que el móvil sigue vigilando con su batería pero sin internet: los avisos solo
+  pueden salir cuando vuelve la corriente, y lo que avisa a tiempo es que falte el latido de las 09:00. (Arreglos
+  posibles fuera del código, sin decidir: un SAI para el router o una SIM con datos en el móvil.)
+- Decisiones del autor (2026-10-29):
+  - Aviso de corriente perdida a los **10 min** sin cargador, con el **margen aproximado** de batería (al 9 % por
+    hora medido, DECISIONS 014); los cortes más cortos no avisan pero cuentan en el resumen del latido.
+  - Un aviso de **batería baja al 15 %** cuando está sin cargador.
+  - El latido de las 09:00 que no pudo salir se envía **con retraso**, diciéndolo.
+  - Al volver la conexión con Telegram solo se avisa de los cortes de **5 min** o más (el juez de la fase 2 corta 10);
+    los demás van al registro y al resumen del latido.
+- Decisiones técnicas: lo que el bot dice por su cuenta pasa por una cola (`Outbox`) en memoria, en orden y con un
+  máximo de 50; si un mensaje sale más de 2 min tarde, dice de cuándo es. Si el móvil muere con mensajes en la cola,
+  se pierden, pero el registro guarda lo ocurrido. El reloj del bot se despierta al menos cada minuto y vuelve a
+  mirar la hora real: un temporizador puede no contar mientras la CPU duerme, la hora real siempre avanza. Las
+  respuestas a comandos no pasan por la cola: salen directamente y, si fallan por la red, el comando vuelve a llegar
+  (DECISIONS 018). Lo único que debe sobrevivir a un reinicio en esta parte es la hora del último latido.
+- Alternativas: avisar del cargador al momento o a los 2 min, latido solo a su hora o saltarlo, sin margen estimado,
+  avisar de todos los cortes de conexión o solo de los de 10 min o más (todas valoradas con el autor); guardar la
+  cola en disco (descartado por ahora: más código y escrituras para un caso raro que el registro ya cubre).

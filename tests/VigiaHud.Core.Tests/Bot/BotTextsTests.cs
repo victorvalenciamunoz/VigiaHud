@@ -1,5 +1,6 @@
 using VigiaHud.Core.Bot;
 using VigiaHud.Core.Device;
+using Outage = VigiaHud.Core.Telegram.Outage;
 
 namespace VigiaHud.Core.Tests.Bot;
 
@@ -70,6 +71,53 @@ public class BotTextsTests
         var at = new DateTimeOffset(year, month, day, hour, minute, 0, TimeSpan.Zero);
 
         Assert.Equal(expected, BotTexts.Moment(at, Now, Zone));
+    }
+
+    [Fact]
+    public void The_daily_heartbeat_says_alive_watching_battery_and_no_outages()
+    {
+        var plan = new HeartbeatPlan(Now, false, Now);
+
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(100, true, 27.5, true), TimeSpan.FromHours(76), [], plan, Zone);
+
+        Assert.Equal(
+            "Sigo vivo.\n" +
+            "Vigilando desde hace 3 d 4 h.\n" +
+            "Batería 100 %, enchufado, 27,5 °C.\n" +
+            "Últimas 24 h: sin cortes de conexión.",
+            text);
+    }
+
+    [Fact]
+    public void A_late_heartbeat_says_which_hour_it_missed_and_counts_the_outages()
+    {
+        var due = new DateTimeOffset(2026, 10, 29, 8, 0, 0, TimeSpan.Zero); // 09:00 local
+        var plan = new HeartbeatPlan(Now, true, due);
+        Outage[] outages =
+        [
+            new(Now.AddHours(-5), Now.AddHours(-5).AddMinutes(4), 6, "x"),
+            new(Now.AddHours(-2), Now.AddHours(-2).AddMinutes(10), 9, "x"),
+        ];
+
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(70, false, 24.0, false), TimeSpan.FromMinutes(90), outages, plan, Zone);
+
+        Assert.Equal(
+            "Sigo vivo (con retraso: a las 09:00 no pude).\n" +
+            "Vigilando desde hace 1 h 30 min.\n" +
+            "Batería 70 %, sin cargador, 24,0 °C.\n" +
+            "Últimas 24 h: 2 cortes de conexión, 14 min en total.\n" +
+            BotTexts.DozeWarning,
+            text);
+    }
+
+    [Fact]
+    public void One_outage_is_told_with_its_length()
+    {
+        Outage[] outages = [new(Now.AddHours(-1), Now.AddHours(-1).AddMinutes(12), 7, "x")];
+
+        var text = BotTexts.DailyHeartbeat(new DeviceStatus(90, true, 25.0, true), TimeSpan.FromHours(30), outages, new HeartbeatPlan(Now, false, Now), Zone);
+
+        Assert.Contains("Últimas 24 h: 1 corte de conexión, de 12 min.", text);
     }
 
     [Fact]

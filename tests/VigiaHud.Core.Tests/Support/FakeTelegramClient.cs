@@ -68,7 +68,39 @@ public sealed class FakeTelegramClient : ITelegramClient
         return next!();
     }
 
-    public Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken) => Task.CompletedTask;
+    private readonly Queue<Exception> _sendFailures = new();
+    private readonly List<(long ChatId, string Text)> _sent = [];
 
-    public Task SendPhotoAsync(long chatId, byte[] jpeg, string? caption, CancellationToken cancellationToken) => Task.CompletedTask;
+    /// <summary>What went out, in order; a photo appears as "[foto] caption".</summary>
+    public IReadOnlyList<(long ChatId, string Text)> Sent
+    {
+        get { lock (_gate) { return [.. _sent]; } }
+    }
+
+    /// <summary>The next send fails with <paramref name="error"/> (one per call).</summary>
+    public FakeTelegramClient FailsToSend(Exception error)
+    {
+        lock (_gate) { _sendFailures.Enqueue(error); }
+        return this;
+    }
+
+    public Task SendMessageAsync(long chatId, string text, CancellationToken cancellationToken) => Send(chatId, text);
+
+    public Task SendPhotoAsync(long chatId, byte[] jpeg, string? caption, CancellationToken cancellationToken) =>
+        Send(chatId, $"[foto] {caption}");
+
+    private Task Send(long chatId, string text)
+    {
+        lock (_gate)
+        {
+            if (_sendFailures.Count > 0)
+            {
+                return Task.FromException(_sendFailures.Dequeue());
+            }
+
+            _sent.Add((chatId, text));
+        }
+
+        return Task.CompletedTask;
+    }
 }
