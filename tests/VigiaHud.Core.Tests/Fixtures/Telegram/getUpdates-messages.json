@@ -1,0 +1,120 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 190431664,
+      "message": {
+        "message_id": 1,
+        "from": {
+          "id": 111222333,
+          "is_bot": false,
+          "first_name": "Dueño",
+          "language_code": "es"
+        },
+        "chat": {
+          "id": 111222333,
+          "first_name": "Dueño",
+          "type": "private"
+        },
+        "date": 1793278104,
+        "text": "/start",
+        "entities": [
+          {
+            "offset": 0,
+            "length": 6,
+            "type": "bot_command"
+          }
+        ]
+      }
+    },
+    {
+      "update_id": 190431665,
+      "message": {
+        "message_id": 2,
+        "from": {
+          "id": 111222333,
+          "is_bot": false,
+          "first_name": "Dueño",
+          "language_code": "es"
+        },
+        "chat": {
+          "id": 111222333,
+          "first_name": "Dueño",
+          "type": "private"
+        },
+        "date": 1793278112,
+        "text": "/foto",
+        "entities": [
+          {
+            "offset": 0,
+            "length": 5,
+            "type": "bot_command"
+          }
+        ]
+      }
+    },
+    {
+      "update_id": 190431666,
+      "message": {
+        "message_id": 3,
+        "from": {
+          "id": 111222333,
+          "is_bot": false,
+          "first_name": "Dueño",
+          "language_code": "es"
+        },
+        "chat": {
+          "id": 111222333,
+          "first_name": "Dueño",
+          "type": "private"
+        },
+        "date": 1793278122,
+        "text": "\uD83C\uDF52"
+      }
+    },
+    {
+      "update_id": 190431667,
+      "message": {
+        "message_id": 4,
+        "from": {
+          "id": 111222333,
+          "is_bot": false,
+          "first_name": "Dueño",
+          "language_code": "es"
+        },
+        "chat": {
+          "id": 111222333,
+          "first_name": "Dueño",
+          "type": "private"
+        },
+        "date": 1793278218,
+        "sticker": {
+          "width": 512,
+          "height": 512,
+          "emoji": "\uD83D\uDE18",
+          "set_name": "pegatinas",
+          "is_animated": true,
+          "is_video": false,
+          "type": "regular",
+          "thumbnail": {
+            "file_id": "FILE_ID",
+            "file_unique_id": "FILE_UNIQUE_ID",
+            "file_size": 3868,
+            "width": 128,
+            "height": 128
+          },
+          "thumb": {
+            "file_id": "FILE_ID",
+            "file_unique_id": "FILE_UNIQUE_ID",
+            "file_size": 3868,
+            "width": 128,
+            "height": 128
+          },
+          "file_id": "FILE_ID",
+          "file_unique_id": "FILE_UNIQUE_ID",
+          "file_size": 21455
+        }
+      }
+    }
+  ]
+}

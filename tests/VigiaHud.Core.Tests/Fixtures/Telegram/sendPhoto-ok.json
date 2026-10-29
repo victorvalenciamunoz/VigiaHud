@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 6,
+    "from": {
+      "id": 1234567890,
+      "is_bot": true,
+      "first_name": "VigíaHud",
+      "username": "VigiaHudPruebaBot"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Dueño",
+      "type": "private"
+    },
+    "date": 1793278240,
+    "photo": [
+      {
+        "file_id": "FILE_ID",
+        "file_unique_id": "FILE_UNIQUE_ID",
+        "file_size": 580,
+        "width": 90,
+        "height": 67
+      },
+      {
+        "file_id": "FILE_ID",
+        "file_unique_id": "FILE_UNIQUE_ID",
+        "file_size": 3615,
+        "width": 320,
+        "height": 240
+      }
+    ],
+    "caption": "Foto de prueba."
+  }
+}

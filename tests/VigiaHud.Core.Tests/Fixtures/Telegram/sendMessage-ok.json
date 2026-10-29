@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 5,
+    "from": {
+      "id": 1234567890,
+      "is_bot": true,
+      "first_name": "VigíaHud",
+      "username": "VigiaHudPruebaBot"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Dueño",
+      "type": "private"
+    },
+    "date": 1793278231,
+    "text": "Prueba de VigíaHud: estoy grabando respuestas de Telegram para los tests. Puedes ignorar este mensaje."
+  }
+}

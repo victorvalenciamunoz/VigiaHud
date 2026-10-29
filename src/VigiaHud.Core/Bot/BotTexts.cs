@@ -54,6 +54,14 @@ public static class BotTexts
         return string.Join('\n', lines);
     }
 
+    /// <summary>Said once the bot can talk again after an outage: how long it lasted and since when.</summary>
+    public static string Reconnected(Telegram.Outage outage, TimeZoneInfo zone)
+    {
+        ArgumentNullException.ThrowIfNull(outage);
+        ArgumentNullException.ThrowIfNull(zone);
+        return $"Vuelvo a tener conexión. Estuve {Duration(outage.Duration)} sin poder hablar con Telegram, desde {Moment(outage.Start, outage.End, zone)}.";
+    }
+
     /// <summary>The caption of a photo taken at <paramref name="takenAt"/>: just the local time.</summary>
     public static string PhotoCaption(DateTimeOffset takenAt, TimeZoneInfo zone)
     {

@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Real answers recorded from the services, with personal values replaced (scripts/record-telegram-fixtures.cs). -->
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\VigiaHud.Core\VigiaHud.Core.csproj" />
   </ItemGroup>
 

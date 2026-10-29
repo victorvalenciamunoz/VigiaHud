@@ -248,3 +248,36 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: el paquete `Telegram.Bot` 22.10.3.3 (MIT, 10,8 millones de descargas, mantenido, Bot API 10.3;
   descartado: 3 MB y tres dependencias para usar tres llamadas, en un móvil con poco espacio, y menos control de los
   tiempos de espera del long polling, que importan para reconectar bien).
+
+## 017 — Secretos de Telegram en el PC y fixtures grabadas sin datos personales
+- Contexto: el paso 2 de la fase 2 necesita el token del bot y el chat ID del dueño en el PC para grabar respuestas
+  reales de la Bot API, y el repo es público (CLAUDE.md: "Token del bot y chat ID nunca en el código ni en git").
+- Decisión: los dos van en los secretos de usuario de .NET con id `vigiahud`
+  (`dotnet user-secrets set "Telegram:Token" (Read-Host 'Token') --id vigiahud`), un JSON en el perfil de Windows,
+  fuera del repo; el token se teclea en la pregunta, no en el comando, para que no quede en el historial. El script
+  `scripts/record-telegram-fixtures.cs` lee el token de ahí, graba seis respuestas reales (mensajes, sondeo vacío,
+  texto y foto enviados, 401 y 409), sustituye el chat y el nombre del dueño, el ID, el nombre y el usuario del bot y
+  los identificadores de fichero por valores inventados, se niega a guardar un fichero si después queda algún dato
+  real y guarda el chat ID en `Telegram:ChatId` sin mostrarlo. El error 429 no se graba: provocarlo exigiría saturar
+  el bot; se prueba con la forma que da la documentación.
+- Alternativas: variables de entorno de usuario (la primera propuesta; el autor prefirió los secretos de usuario);
+  grabar a mano con curl (descartado: el token quedaría en el historial y la limpieza
+  dependería de no olvidarse de nada).
+
+## 018 — Reconexión con un bucle propio que no se rinde nunca
+- Contexto: el paso 3 de la fase 2 pide reconectar solo si cae el wifi o Telegram no responde, registrando cada
+  corte, y el juez de la fase 2 corta el wifi 10 min y espera que el bot vuelva y avise. Valorado el 2026-10-29 con las
+  fuentes: Polly.Core 8.9.0 (BSD-3, sin dependencias en .NET 10) y Microsoft.Extensions.Http.Resilience 10.11.0 (MIT,
+  encima de Polly, con tres dependencias más). La configuración estándar de esta última corta cada intento a los 10 s
+  y la petición a los 30 s (el long polling espera 50 s), reintenta 3 veces y se rinde, y reintenta también los
+  envíos, que duplicarían un `/estado`.
+- Decisión (del autor, 2026-10-29): un bucle propio en Core, `TelegramPoller`, sin paquetes. No se rinde nunca: espera
+  2 s y dobla hasta 5 min, sin azar (es un solo cliente); respeta `retry_after`; un token rechazado (401, 403, 404) o
+  un error inesperado esperan 5 min, porque esperar no los arregla. Un mensaje se da por recibido solo cuando está
+  contestado: si contestar falla por la red vuelve a llegar; si falla por un fallo nuestro se salta y se apunta, para
+  no atascar la cola. Cada corte es una línea `info` al empezar y otra al acabar, con su duración y los intentos, y se
+  entrega al llamador para avisar al dueño. Un corte de red es `info`, no `error`: es el tiempo que hace, no un fallo
+  de la app, y no debe ensuciar la cuenta de errores del juez de la fase 1. El token rechazado sí es `error`.
+- Alternativas: Polly.Core (encaja mejor que la de Microsoft, pero solo ahorra la parte fácil; el registro de cortes
+  es código nuestro igualmente); Microsoft.Extensions.Http.Resilience (habría que desactivar casi toda su
+  configuración estándar y meter inyección de dependencias de `HttpClient`).
