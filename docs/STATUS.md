@@ -259,4 +259,7 @@
 ## Siguiente
 
 - Autonomía a batería: se deja así (DECISIONS 014).
-- Juez de 72 h con el móvil en un cargador de pared todo el tiempo.
+- Juez de 72 h con el móvil en un cargador de pared todo el tiempo: puesto en el cargador el 2026-10-29 a las
+  11:50 UTC, sin reinstalar (sigue la vigilancia de la versión de DECISIONS 013). Veredicto después de las 11:50 UTC
+  del 2026-11-01 con `scripts\judge-log.ps1 -From 2026-10-29T11:50Z`; los latidos deben decir `plugged=yes` todo el
+  tiempo. Si pasa, cerrar la fase 1 y llevar sus secciones a `docs/historia.md`.
