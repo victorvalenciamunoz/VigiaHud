@@ -258,5 +258,5 @@
 
 ## Siguiente
 
-- Decidir con el autor qué hacer con la autonomía a batería (ver la conversación del 2026-10-29).
+- Autonomía a batería: se deja así (DECISIONS 014).
 - Juez de 72 h con el móvil en un cargador de pared todo el tiempo.
