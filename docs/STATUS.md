@@ -306,6 +306,15 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   - Textos nuevos en `BotTexts`: `DailyHeartbeat` ("Sigo vivo." o "Sigo vivo (con retraso: a las 09:00 no pude).",
     tiempo vigilando, batería, cortes de las últimas 24 h y el aviso de exclusión de batería si falta) y
     `CameraNotReady`.
+- Avisos de corriente y batería (DECISIONS 019 y 020): `PowerWatch` recibe cada minuto, del reloj de `BotRunner`, una
+  lectura del móvil y dice qué contar, una vez cada cosa: `PowerNotice.Lost` a los 10 min sin cargador ("Sin
+  corriente desde hoy a las 03:12: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 9 h de
+  margen."), `Back` al volver si se avisó del corte ("Vuelve la corriente. Estuvo 1 h 20 min sin cargador; batería al
+  72 %."), `LowBattery` al 15 % sin cargador ("me apagaré en unas 2 h") y `DozeExemptionLost` en cuanto falta la
+  exclusión de batería, otra vez solo si vuelve y se pierde. Guarda todos los cortes de corriente (`PowerCut`), cortos
+  incluidos, para el resumen del latido: "Últimas 24 h: sin cortes de conexión; 1 corte de corriente, de 4 min." El
+  margen es `PowerWatch.HoursLeft`: el porcentaje entre 9 % por hora, redondeado a horas. Cada aviso deja una línea
+  `power:` en el registro.
 - En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
   dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
   graba respuestas reales de la Bot API con los datos personales sustituidos.
@@ -316,10 +325,10 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
 - [x] Paso 2 — Cliente de Telegram propio con `HttpClient`, probado con respuestas reales grabadas (2026-10-29).
 - [x] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte
   (2026-10-29).
-- [ ] Paso 4 — Mensajes por su cuenta (DECISIONS 019), en dos partes:
+- [x] Paso 4 — Mensajes por su cuenta (DECISIONS 019), en dos partes:
   - [x] 4.1 Latido diario a las 09:00 con el resumen, con retraso si hace falta, y cola de salida (2026-10-29).
-  - [ ] 4.2 Avisos de corriente perdida (a los 10 min, con el margen estimado) y recuperada, batería baja al 15 % y
-    exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido.
+  - [x] 4.2 Avisos de corriente perdida (a los 10 min, con el margen estimado) y recuperada, batería baja al 15 % y
+    exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido (2026-10-29).
 - [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
   y el juez de la fase 2 (cortar el wifi del router 10 min).
 
@@ -361,3 +370,10 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   antes de que el bucle empezara a esperar. `Support/SteppingClock` avisa cuando alguien espera y los tests solo
   adelantan después; cinco pasadas seguidas sin fallos. `dotnet build` 0 avisos (app incluida), `dotnet test` 169
   tests.
+- Paso 4.2: 25 tests nuevos. `PowerWatchTests`: siempre enchufado no dice nada; 10 min sin cargador avisan una vez con
+  desde cuándo y la batería; un corte corto no avisa pero queda para el resumen; el final de un corte avisado dice su
+  duración; batería baja una vez al 15 %, otra vez solo tras cargar y volver a perder la corriente, nada si está
+  cargando; exclusión perdida una vez, otra solo tras recuperarla; los cortes viejos se olvidan; el margen a 9 % por
+  hora. `BotTextsTests`: los cuatro textos nuevos y el resumen con cortes de conexión y de corriente.
+  `BotRunnerTests`: el aviso de corriente sale a los 10 min simulados, ni uno antes, y el de exclusión al arrancar.
+  `dotnet build` 0 avisos (app incluida), `dotnet test` 194 tests (cinco pasadas seguidas).
