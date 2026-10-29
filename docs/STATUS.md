@@ -276,12 +276,22 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   del texto, nunca el texto), `BotDecision` (ignorar, responder texto, mandar foto, mandar estado) y `BotTexts` (ayuda,
   "no te entiendo", estado y pie de foto en español, con la hora en la zona local que se le pasa; el estado avisa si
   falta la exclusión de batería).
+- `VigiaHud.Core.Telegram` (DECISIONS 016 y 017): `ITelegramClient` con `TelegramClient` sobre `HttpClient` y
+  `JsonDocument` (sin reflexión, apto para la app recortada): `GetUpdatesAsync` (long polling solo de mensajes, con
+  offset; devuelve `UpdateBatch` con los mensajes y el offset siguiente, que avanza también con lo que no es mensaje),
+  `SendMessageAsync` (JSON) y `SendPhotoAsync` (multipart con la foto JPEG y el pie). Cada petición lleva su propio
+  plazo: el long poll más 15 s, o 60 s para enviar. Dos errores distintos para el paso 3: `TelegramApiException`
+  (Telegram contestó con un error: código, descripción y `retry_after` si lo hay) y `TelegramUnavailableException`
+  (sin red, sin respuesta a tiempo o una respuesta que no es de la Bot API). El token nunca aparece en un mensaje de
+  error. Una cancelación desde fuera sigue siendo cancelación.
+- En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
+  dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
+  graba respuestas reales de la Bot API con los datos personales sustituidos.
 
 ### Qué falta
 
 - [x] Paso 1 — Comandos y dueño (2026-10-29).
-- [ ] Paso 2 — Cliente de Telegram propio con `HttpClient` (`getUpdates` con long polling, `sendMessage`,
-  `sendPhoto`), probado con respuestas reales grabadas; hace falta crear el bot con @BotFather.
+- [x] Paso 2 — Cliente de Telegram propio con `HttpClient`, probado con respuestas reales grabadas (2026-10-29).
 - [ ] Paso 3 — Reconexión con espera creciente si cae el wifi o Telegram no responde, registrando cada corte.
 - [ ] Paso 4 — Latido diario a las 09:00 hora local con el resumen, aviso de cargador desconectado y reconectado, y
   aviso de exclusión de batería perdida.
@@ -295,3 +305,15 @@ Mientras tanto, la **fase 2** avanza solo en Core y tests, sin tocar el móvil (
   registrado sin su texto; chat de grupo con ID negativo; textos exactos del estado con y sin datos, con aviso de
   exclusión de batería; duraciones; "hoy", "ayer" y fechas en hora local con una zona de prueba fija. `dotnet build`
   0 avisos (app incluida), `dotnet test` 102 tests.
+- Paso 2: 24 tests nuevos en `tests/VigiaHud.Core.Tests/Telegram`. `TelegramClientTests` con un `HttpClient` falso
+  (`Support/FakeHttpHandler`): la petición de `getUpdates` (dirección, offset, plazo, solo mensajes), el primer
+  sondeo sin offset, el offset que avanza también con lo que no es mensaje, JSON de `sendMessage`, multipart de
+  `sendPhoto`, error 429 con `retry_after` (forma de la documentación: no se puede provocar sin riesgo), 502 en HTML
+  como no disponible, fallo de red sin el token en el mensaje, plazo agotado, cancelación desde fuera y tokens mal
+  formados. `TelegramRecordedAnswersTests` con seis respuestas reales grabadas el 2026-10-29
+  (`Fixtures/Telegram`): los cuatro mensajes del dueño (`/start`, `/foto`, un emoji, que llega como texto, y una
+  pegatina, sin texto) con las decisiones de `BotBrain`, el sondeo vacío, el texto y la foto enviados, el 401 de un
+  token falso y el 409 de dos sondeos a la vez. Los tests cazaron un fallo real: `new Uri(base, "bot123:ABC/...")`
+  toma "bot123" por protocolo y descarta la dirección de Telegram; la dirección se monta ahora como texto.
+  Prueba de extremo a extremo con el bot real (script desechable): el cliente de Core lee, envía el texto y la foto
+  y recibe el 401 con un token falso. `dotnet build` 0 avisos (app incluida), `dotnet test` 126 tests.

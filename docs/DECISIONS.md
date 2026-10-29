@@ -248,3 +248,18 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: el paquete `Telegram.Bot` 22.10.3.3 (MIT, 10,8 millones de descargas, mantenido, Bot API 10.3;
   descartado: 3 MB y tres dependencias para usar tres llamadas, en un móvil con poco espacio, y menos control de los
   tiempos de espera del long polling, que importan para reconectar bien).
+
+## 017 — Secretos de Telegram en el PC y fixtures grabadas sin datos personales
+- Contexto: el paso 2 de la fase 2 necesita el token del bot y el chat ID del dueño en el PC para grabar respuestas
+  reales de la Bot API, y el repo es público (CLAUDE.md: "Token del bot y chat ID nunca en el código ni en git").
+- Decisión: los dos van en los secretos de usuario de .NET con id `vigiahud`
+  (`dotnet user-secrets set "Telegram:Token" (Read-Host 'Token') --id vigiahud`), un JSON en el perfil de Windows,
+  fuera del repo; el token se teclea en la pregunta, no en el comando, para que no quede en el historial. El script
+  `scripts/record-telegram-fixtures.cs` lee el token de ahí, graba seis respuestas reales (mensajes, sondeo vacío,
+  texto y foto enviados, 401 y 409), sustituye el chat y el nombre del dueño, el ID, el nombre y el usuario del bot y
+  los identificadores de fichero por valores inventados, se niega a guardar un fichero si después queda algún dato
+  real y guarda el chat ID en `Telegram:ChatId` sin mostrarlo. El error 429 no se graba: provocarlo exigiría saturar
+  el bot; se prueba con la forma que da la documentación.
+- Alternativas: variables de entorno de usuario (la primera propuesta; el autor prefirió los secretos de usuario);
+  grabar a mano con curl (descartado: el token quedaría en el historial y la limpieza
+  dependería de no olvidarse de nada).
