@@ -205,11 +205,6 @@
   debería avisar de `doze_exempt=no`.
 - No se ha visto actuar al vigilante por alarma ni ha hecho falta: no hubo ninguna muerte del proceso.
 
-## Siguiente
-
-- Dejar la vigilancia hasta las 72 h (2026-10-27 07:22 UTC) y cerrar la fase 1 con el veredicto final.
-- Probar aparte (después de las 72 h) si la exclusión de batería se pierde en cualquier reinicio: ponerla, `adb
-  reboot`, comprobar.
 ### Juez de 72 h: FALLA por la cámara (2026-10-27)
 
 - Registro: `verificacion/2026-10-27-1422-vigia.log` (7313 líneas). Informe: `2026-10-27-fase1-juez-72h.md`
@@ -245,10 +240,6 @@
   recuperación dependería del vigilante por alarma (10 min, más lo que retrase Doze). Con la exclusión de batería
   puesta no pasaría; la fase 2 debe avisar por Telegram de `doze_exempt=no`.
 
-## Siguiente
-
-- Juez de 72 h nuevo con esta versión: la vigilancia arrancó el 2026-10-27 a las 14:47:24 UTC; veredicto después de
-  las 14:47 UTC del 2026-10-30 con `scripts\judge-log.ps1 -From 2026-10-27T14:47Z`. Si pasa, cerrar la fase 1.
 ### Segundo juez de 72 h: roto por la batería; autonomía medida (2026-10-29)
 
 - La vigilancia del arreglo (desde el 2026-10-27 14:47 UTC) no ha podido completar las 72 h: el móvil se desenchufó
