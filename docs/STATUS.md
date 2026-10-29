@@ -205,11 +205,6 @@
   debería avisar de `doze_exempt=no`.
 - No se ha visto actuar al vigilante por alarma ni ha hecho falta: no hubo ninguna muerte del proceso.
 
-## Siguiente
-
-- Dejar la vigilancia hasta las 72 h (2026-10-27 07:22 UTC) y cerrar la fase 1 con el veredicto final.
-- Probar aparte (después de las 72 h) si la exclusión de batería se pierde en cualquier reinicio: ponerla, `adb
-  reboot`, comprobar.
 ### Juez de 72 h: FALLA por la cámara (2026-10-27)
 
 - Registro: `verificacion/2026-10-27-1422-vigia.log` (7313 líneas). Informe: `2026-10-27-fase1-juez-72h.md`
@@ -245,7 +240,26 @@
   recuperación dependería del vigilante por alarma (10 min, más lo que retrase Doze). Con la exclusión de batería
   puesta no pasaría; la fase 2 debe avisar por Telegram de `doze_exempt=no`.
 
+### Segundo juez de 72 h: roto por la batería; autonomía medida (2026-10-29)
+
+- La vigilancia del arreglo (desde el 2026-10-27 14:47 UTC) no ha podido completar las 72 h: el móvil se desenchufó
+  cada tarde y se quedó sin batería dos noches (apagado de 2026-10-27 ~23:59 a 2026-10-28 06:28 UTC y de 2026-10-29
+  ~00:41 a 08:12 UTC). Las dos veces volvió solo al encenderse (`boot: service start requested`). Cada corte es un
+  hueco de 6-7 h, así que el juez fallará por fuerza: `PLAN.md` pide el juez **enchufado**.
+- Autonomía a batería con la cámara siempre en marcha: **8-9 % por hora** (49 % a 5 % en 5 h, dos días seguidos),
+  unas 11-12 h desde el 100 %. Android lo atribuye casi entero a la vigilancia: en las 8 h 32 min a batería,
+  `dumpsys batterystats` estima VigíaHud en 5323 de 6057 mAh calculados (cámara 4739, CPU 582) más 483 del servicio
+  de cámara del sistema; pantalla 3, Wi-Fi 5, red móvil 9. Capacidad declarada 5000 mAh y descarga real medida
+  2650-2750 mAh en ese tiempo (unos 320 mA de media): la batería está bien; el gasto es tener la cámara encendida.
+  En el ordenador por USB el móvil carga a solo +4-5 % por hora con la cámara en marcha.
+- Tercera muerte por ColorOS: `am_kill ... o-kill` el 2026-10-29 a las 10:48:52 UTC, enchufado al ordenador, con
+  batería al 15 %, 36,8 °C y sin la exclusión de batería (perdida en el reinicio). El reinicio sticky la recuperó
+  sola (`service restarted by Android` a las 10:53:24): hueco de 6 min. Exclusión puesta otra vez a las 11:34 UTC.
+
 ## Siguiente
 
-- Juez de 72 h nuevo con esta versión: la vigilancia arrancó el 2026-10-27 a las 14:47:24 UTC; veredicto después de
-  las 14:47 UTC del 2026-10-30 con `scripts\judge-log.ps1 -From 2026-10-27T14:47Z`. Si pasa, cerrar la fase 1.
+- Autonomía a batería: se deja así (DECISIONS 014).
+- Juez de 72 h con el móvil en un cargador de pared todo el tiempo: puesto en el cargador el 2026-10-29 a las
+  11:50 UTC, sin reinstalar (sigue la vigilancia de la versión de DECISIONS 013). Veredicto después de las 11:50 UTC
+  del 2026-11-01 con `scripts\judge-log.ps1 -From 2026-10-29T11:50Z`; los latidos deben decir `plugged=yes` todo el
+  tiempo. Si pasa, cerrar la fase 1 y llevar sus secciones a `docs/historia.md`.
