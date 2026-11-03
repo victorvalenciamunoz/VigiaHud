@@ -317,3 +317,58 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: suscribirse a los avisos de cargador de Android (descartado: más código de plataforma para ganar
   como mucho un minuto en un aviso que espera 10); estimar el margen con la descarga reciente medida en el propio
   móvil (descartado por ahora: más complejo y la cifra fija ya da el orden de magnitud).
+
+## 021 — El bot en el móvil: secretos por adb y foto grande bajo demanda
+- Contexto: paso 5 de la fase 2. El token y el chat ID no pueden ir en git ni en el APK; el móvil viejo no tiene
+  Telegram ni es cómodo teclear en él. El fotograma de la vigilancia mide 320×240, poco para echar un vistazo.
+- Decisiones del autor (2026-11-03): los secretos llegan **desde el PC por adb**; `/foto` da una foto de **1280×960**.
+- Decisiones técnicas:
+  - `scripts/push-telegram-secrets.ps1` lee los secretos de usuario del PC (DECISIONS 017) y los escribe por la
+    entrada de `adb shell run-as` en `files/telegram.json`, con permisos 600, sin fichero temporal y sin mostrarlos.
+    Solo funciona con la app instalada desde el PC (depurable), que es como se instala. El fichero queda en el
+    almacenamiento privado de la app y no sale del móvil: la copia de seguridad de Android está desactivada
+    (DECISIONS 012). `WatchService` lo lee al arrancar; sin él, la vigilancia sigue sola y lo apunta.
+  - La foto grande es una captura suelta (`StillCapture`) en la sesión de cámara que ya está en marcha, hacia una
+    segunda salida JPEG que el flujo de vigilancia no usa: la exposición ya está ajustada (DECISIONS 008), no hay
+    flash, y la orientación la escribe la cámara en el JPEG (90° con el móvil de pie, por el montaje del sensor del
+    OPPO). Si no llega en 5 s, se envía el último fotograma de la vigilancia; sin fotograma reciente, "la cámara no
+    está lista".
+  - La conversión de cada fotograma a JPEG copia cada plano de color de una vez en vez de leerlo píxel a píxel a través
+    de Java: la app baja del 51 % al 22 % de un núcleo. El servicio de cámara del sistema sube unos 10 puntos (del 94
+    al 101-106 %), quizá por la segunda salida; en conjunto se gasta menos. Pendiente de medir en una descarga.
+  - Cada respuesta al dueño deja una línea en el registro con lo que se pidió, nunca con sus palabras.
+- Alternativas: escribir los secretos en una pantalla de la app (descartado por el autor: teclear 46 caracteres en el
+  móvil viejo); meterlos en el APK al compilar (descartado: el token viajaría dentro del fichero instalable); subir
+  todo el flujo de vigilancia a 1280×960 (descartado: más consumo continuo para una foto que se pide de vez en
+  cuando); abrir una sesión nueva solo para la foto (descartado: la exposición tendría que volver a ajustarse y las
+  fotos sueltas sin flujo salían negras, DECISIONS 008).
+
+## 022 — Las fotos se ponen derechas solas, con el acelerómetro
+- Contexto: el sensor de la cámara del OPPO está montado a 90°; una foto sale derecha solo si se le escribe el giro
+  que corresponde a cómo está el móvil. El autor todavía no sabe si lo colocará de pie o tumbado, y tumbado puede
+  quedar hacia cualquiera de los dos lados.
+- Decisión (del autor, 2026-11-03): orientación automática. En cada foto la app lee una vez el acelerómetro, saca la
+  rotación del móvil al cuarto de vuelta más cercano (la regla de `OrientationEventListener` de Android: plano si la
+  inclinación no llega a unos 27°) y escribe en el JPEG el montaje del sensor más esa rotación
+  (`PhotoOrientation` en Core, `GravityReader` en la app). Plano, o sin lectura en 1 s, cuenta la última posición
+  conocida y, antes de ninguna, de pie. El sensor solo se escucha durante ese momento: no gasta mientras vigila. La
+  foto de respaldo (el fotograma de 320×240) no se gira.
+- Alternativas: un giro fijo para el móvil de pie o tumbado (descartado: hay que acertar el lado y deja de valer si
+  se recoloca); un ajuste en la app (descartado: una decisión más para el dueño sin ganar nada).
+
+## 023 — Cualquier fallo de red es "sin red", y se reintenta en cuanto Android avisa
+- Contexto: juez de la fase 2 (2026-11-03). En el OPPO, el componente de red nativo de Android que usa `HttpClient`
+  lanza `WebException` al perder la red, no `HttpRequestException` ni `IOException`, los dos que el cliente
+  reconocía: el bucle lo trató como error inesperado, lo apuntó como `error` y esperó 5 min de golpe. Además, tras
+  un corte largo la espera creciente llega a 5 min, y el bot tardó 3,5 min en notar que el wifi había vuelto.
+- Decisión:
+  - `TelegramClient`: cualquier excepción al enviar o leer la petición, salvo una cancelación pedida por quien llama,
+    es `TelegramUnavailableException` con el nombre del tipo y el token oculto. Los errores inesperados del bucle
+    quedan para lo que no sea hablar con Telegram.
+  - `TelegramPoller.RetryNow` corta la espera en curso; `NetworkWatcher` en la app lo llama cuando Android avisa de
+    que hay una red disponible (`ConnectivityManager.registerDefaultNetworkCallback`, API 24+; permiso
+    `ACCESS_NETWORK_STATE`, que ya estaba). Si el reintento falla, la espera sigue creciendo donde iba: una red sin
+    internet no puede hacer que el bot reintente sin parar. (Decisión del autor: reintentar al volver la red.)
+- Alternativas: enumerar los tipos de error de cada plataforma (descartado: el siguiente que no estuviera en la lista
+  volvería a tratarse como inesperado); bajar el máximo de espera de 5 min (descartado: más intentos inútiles durante
+  cortes largos sin resolver el caso del wifi que vuelve).

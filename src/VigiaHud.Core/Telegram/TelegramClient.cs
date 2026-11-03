@@ -126,10 +126,12 @@ public sealed class TelegramClient : ITelegramClient
         {
             throw new TelegramUnavailableException($"{method}: no answer in {deadline.TotalSeconds:0} s");
         }
-        catch (Exception error) when (error is HttpRequestException or IOException)
+        catch (Exception error) when (error is not OperationCanceledException)
         {
+            // Any failure to talk is "unavailable", whatever its type: on Android the native handler throws a
+            // WebException when the network goes (seen on 2026-11-03, DECISIONS 023), not an HttpRequestException.
             // The inner exception is not kept: only this message, with the token hidden, may reach the log.
-            throw new TelegramUnavailableException($"{method}: {Hide(error.Message)}");
+            throw new TelegramUnavailableException($"{method}: {error.GetType().Name}: {Hide(error.Message)}");
         }
 
         JsonDocument document;

@@ -2,8 +2,12 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using VigiaHud.App.Bot;
+using VigiaHud.App.Platforms.Android.Bot;
+using VigiaHud.Core.Bot;
 using VigiaHud.Core.Device;
 using VigiaHud.Core.Logging;
+using VigiaHud.Core.Telegram;
 using VigiaHud.Core.Watch;
 
 namespace VigiaHud.App.Platforms.Android.Watch;
@@ -29,6 +33,15 @@ public sealed class WatchService : Service
     /// <summary>Long enough to outlast a missed minute or two, short enough that a forgotten lock dies on its own.</summary>
     private static readonly TimeSpan WakeLockHold = TimeSpan.FromMinutes(15);
 
+    /// <summary>A frame older than this is not "now": the camera is lost or stalled, and <c>/foto</c> says so.</summary>
+    private static readonly TimeSpan FreshFrame = TimeSpan.FromSeconds(10);
+
+    /// <summary>How long a large photo may take before <c>/foto</c> falls back to a stream frame.</summary>
+    private static readonly TimeSpan StillTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>Which way the phone stands, read once per photo so the photo comes out upright (DECISIONS 022).</summary>
+    private Platforms.Android.Device.GravityReader? _gravity;
+
     private static readonly object Gate = new();
     private static bool _isRunning;
     private static WatchService? _current;
@@ -44,6 +57,11 @@ public sealed class WatchService : Service
     private SnapshotStore? _snapshots;
     private CameraCapturer? _camera;
     private Java.Lang.Runnable? _tick;
+    private DateTimeOffset _startedAt;
+    private readonly object _frameGate = new();
+    private (byte[] Jpeg, DateTimeOffset At)? _latestFrame;
+    private CancellationTokenSource? _botStop;
+    private NetworkWatcher? _network;
 
     public static bool IsRunning
     {
@@ -123,6 +141,7 @@ public sealed class WatchService : Service
                 }
 
                 StartCapturing();
+                StartBot();
                 // The alarm that outlives this process (DECISIONS 012): if we die and the sticky restart fails, it starts us again.
                 WatchdogReceiver.Schedule(this);
                 _current = this;
@@ -149,6 +168,7 @@ public sealed class WatchService : Service
     public override void OnDestroy()
     {
         _current = null;
+        StopBot();
         StopCapturing();
         ReleaseWakeLock();
         if (IsRunning)
@@ -168,6 +188,7 @@ public sealed class WatchService : Service
         }
 
         var now = _clock!.GetUtcNow();
+        _startedAt = now;
         _reporter = new WatchReporter(_timings!, now);
         _snapshots = new SnapshotStore(Path.Combine(FilesDir!.AbsolutePath, "snapshots"), MaxSnapshots);
         _camera = new CameraCapturer(this, _log, OnFrame, OnFrameFailed);
@@ -207,8 +228,104 @@ public sealed class WatchService : Service
         }
 
         var now = _clock!.GetUtcNow();
+        lock (_frameGate)
+        {
+            _latestFrame = (jpeg, now);
+        }
+
         HandleTick(_reporter.OnFrame(now), now, jpeg);
     });
+
+    /// <summary>
+    /// For <c>/foto</c>, from the bot's thread: a large photo from the camera, or the newest stream frame if the camera
+    /// does not give one in time, or null if there is no fresh frame either.
+    /// </summary>
+    private async Task<byte[]?> TakePhotoAsync(CancellationToken cancellationToken)
+    {
+        if (_camera is { } camera)
+        {
+            try
+            {
+                _gravity ??= new Platforms.Android.Device.GravityReader(this);
+                var rotation = await _gravity.RotationAsync(cancellationToken).ConfigureAwait(false);
+                var turn = VigiaHud.Core.Device.PhotoOrientation.JpegOrientation(camera.SensorOrientation, rotation);
+                var asked = System.Diagnostics.Stopwatch.StartNew();
+                if (await camera.TakeStillAsync(turn).WaitAsync(StillTimeout, cancellationToken).ConfigureAwait(false) is { } still)
+                {
+                    // What is left until "telegram: answered /foto" is the upload.
+                    _log?.Write(LogKind.Info, $"photo: phone rotated {rotation}, jpeg turned {turn}, {still.Length / 1024} KB in {asked.ElapsedMilliseconds} ms");
+                    return still;
+                }
+            }
+            catch (TimeoutException)
+            {
+                _log?.Write(LogKind.Info, $"photo: no answer from the camera in {StillTimeout.TotalSeconds:0} s; sending a stream frame");
+            }
+        }
+
+        return LatestFrame();
+    }
+
+    /// <summary>The newest frame if it is fresh, for <c>/foto</c>; called from the bot's thread.</summary>
+    private byte[]? LatestFrame()
+    {
+        lock (_frameGate)
+        {
+            return _latestFrame is { } frame && _clock!.GetUtcNow() - frame.At <= FreshFrame ? frame.Jpeg : null;
+        }
+    }
+
+    /// <summary>
+    /// Starts the Telegram bot (phase 2) if the phone has its secrets (DECISIONS 021). Without them the watch runs as in
+    /// phase 1 and says so in the log. The bot runs on its own thread and never stops the watch: a fault there is logged.
+    /// </summary>
+    private void StartBot()
+    {
+        var path = Path.Combine(FilesDir!.AbsolutePath, TelegramSecrets.FileName);
+        var secrets = File.Exists(path) ? TelegramSecrets.TryParse(File.ReadAllText(path)) : null;
+        if (secrets is null || _device is null)
+        {
+            _log!.Write(LogKind.Info, File.Exists(path) ? "telegram: secrets file unreadable; bot off" : "telegram: not configured; bot off");
+            return;
+        }
+
+        var environment = new AndroidBotEnvironment(_device, () => _clock!.GetUtcNow() - _startedAt, TakePhotoAsync);
+        var client = new TelegramClient(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }, secrets.Token);
+        var runner = new BotRunner(client, secrets.ChatId, environment, new PreferencesBotMemory(), _clock!, _log!);
+        var log = _log!;
+        _network = new NetworkWatcher(this, () =>
+        {
+            if (runner.NetworkAvailable())
+            {
+                log.Write(LogKind.Info, "telegram: network back; retrying now");
+            }
+        });
+        _botStop = new CancellationTokenSource();
+        var stop = _botStop.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await runner.RunAsync(stop).ConfigureAwait(false);
+            }
+            catch (System.OperationCanceledException) when (stop.IsCancellationRequested)
+            {
+            }
+            catch (Exception error)
+            {
+                log.Write(LogKind.Error, $"telegram: bot stopped: {error.GetType().Name}: {error.Message}");
+            }
+        });
+    }
+
+    private void StopBot()
+    {
+        _network?.Dispose();
+        _network = null;
+        _botStop?.Cancel();
+        _botStop?.Dispose();
+        _botStop = null;
+    }
 
     private void OnFrameFailed(string reason) => _main.Post(() =>
     {

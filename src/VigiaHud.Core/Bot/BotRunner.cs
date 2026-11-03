@@ -66,6 +66,10 @@ public sealed class BotRunner
     /// <summary>Where the bot's own messages wait for the network: heartbeat, outage, power and battery notices.</summary>
     public Outbox Outbox { get; }
 
+    /// <summary>The phone says the network is back: if the bot was waiting to retry, it retries now (DECISIONS 023).</summary>
+    /// <returns>Whether a wait was cut.</returns>
+    public bool NetworkAvailable() => _poller.RetryNow();
+
     /// <summary>Runs both loops until cancelled; never ends on its own.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -77,7 +81,8 @@ public sealed class BotRunner
 
     private async Task HandleAsync(IncomingMessage message, CancellationToken cancellationToken)
     {
-        switch (_brain.Decide(message))
+        var decision = _brain.Decide(message);
+        switch (decision)
         {
             case BotDecision.Ignore ignore:
                 if (ignore.LogLine is { } line)
@@ -111,9 +116,20 @@ public sealed class BotRunner
                 break;
         }
 
+        // Proof for the judge that the owner was answered; never the owner's own words, only what was asked.
+        _log.Write(LogKind.Info, $"telegram: answered {Asked(decision)}");
+
         // The owner just reached us: Telegram works, a good moment for what was waiting.
         await Outbox.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private static string Asked(BotDecision decision) => decision switch
+    {
+        BotDecision.SendStatus => "/estado",
+        BotDecision.SendPhoto => "/foto",
+        BotDecision.Reply { Text: BotTexts.Help } => "/ayuda",
+        _ => "other text",
+    };
 
     private async Task ReconnectedAsync(Outage outage, CancellationToken cancellationToken)
     {

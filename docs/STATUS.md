@@ -58,6 +58,19 @@ historia completa está en `docs/historia.md`.
 - En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
   dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
   graba respuestas reales de la Bot API con los datos personales sustituidos.
+- En el móvil (paso 5, DECISIONS 021): `scripts/push-telegram-secrets.ps1` copia el token y el chat ID de los secretos
+  del PC a `files/telegram.json`, en el almacenamiento privado de la app (permisos 600), sin fichero temporal ni nada
+  en pantalla. `WatchService` lee ese fichero al arrancar (`TelegramSecrets` en Core) y pone en marcha `BotRunner` en
+  su propio hilo; sin el fichero, la vigilancia sigue como en la fase 1 y lo apunta. `AndroidBotEnvironment` da la
+  zona del móvil, la batería y el tiempo vigilando; `PreferencesBotMemory` guarda la hora del último latido.
+  `/foto` toma una foto aparte de 1280×960 en la sesión de cámara que ya está en marcha (exposición ya ajustada, sin
+  flash, con la orientación escrita en el JPEG: 90° para el móvil de pie); si la cámara no la da en 5 s, envía el
+  último fotograma de la vigilancia. Cada respuesta deja `telegram: answered /estado|/foto|/ayuda|other text` en el
+  registro, nunca las palabras del dueño.
+- Menos CPU en la vigilancia: la conversión de cada fotograma a JPEG copiaba los colores píxel a píxel a través del
+  puente con Java (unas 38 000 llamadas cada 2 s); ahora copia cada plano una vez. Medido con `/proc` en el OPPO, en
+  ventanas de 20 s: la app pasa del 51 % al 21-23 % de un núcleo (el hilo de cámara, del 41 % al 10,6 %); el servicio de
+  cámara del sistema pasa del 94 % (una medida) al 101-106 %, quizá por tener preparada la salida de la foto grande.
 
 ### Qué falta
 
@@ -69,8 +82,13 @@ historia completa está en `docs/historia.md`.
   - [x] 4.1 Latido diario a las 09:00 con el resumen, con retraso si hace falta, y cola de salida (2026-10-29).
   - [x] 4.2 Avisos de corriente perdida (a los 10 min, con el margen estimado) y recuperada, batería baja al 15 % y
     exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido (2026-10-29).
-- [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
-  y el juez de la fase 2 (cortar el wifi del router 10 min).
+- [ ] Paso 5 — En el móvil (DECISIONS 021):
+  - [x] Token y chat ID en el móvil fuera de git, el bot conectado al servicio, `/foto` a 1280×960 (2026-11-03).
+  - [x] Latido diario con retraso, en el móvil (2026-11-03).
+  - [ ] El primer latido diario a las 09:00 en punto (2026-11-04).
+  - [x] Juez de la fase 2: 10 min sin red (wifi del móvil apagado por `adb`, en lugar del router); vuelve solo y avisa
+    del corte. PASA en el segundo intento, tras los arreglos de DECISIONS 023 (2026-11-03).
+  - [x] Fotos derechas en cualquier posición del móvil, con el acelerómetro (DECISIONS 022, 2026-11-03).
 
 ### Cómo se validó
 
@@ -117,3 +135,36 @@ historia completa está en `docs/historia.md`.
   hora. `BotTextsTests`: los cuatro textos nuevos y el resumen con cortes de conexión y de corriente.
   `BotRunnerTests`: el aviso de corriente sale a los 10 min simulados, ni uno antes, y el de exclusión al arrancar.
   `dotnet build` 0 avisos (app incluida), `dotnet test` 194 tests (cinco pasadas seguidas).
+- Paso 5 (2026-11-03): 14 tests nuevos (`TelegramSecretsTests`: el fichero bueno, chat de grupo, diez formas de
+  fichero malo, entre ellas un chat ID entre comillas que hacía saltar una excepción, y que imprimirlo no muestra el
+  token; `BotRunnerTests`: cada respuesta deja su línea sin las palabras del dueño). En el OPPO: el script copió los
+  secretos (78 bytes, `-rw-------`; la primera vez llevaban delante la marca BOM que añade Windows PowerShell, ya
+  evitada); tras instalar, `telegram: bot started` sin errores; el autor mandó `/estado`, `/ayuda`, un texto y `/foto`
+  desde su Telegram y recibió el estado, la lista, el "No te entiendo" y la foto; con la foto grande, `/foto` llegó a
+  1280×960 y derecha con el móvil de pie (`telegram: answered /foto`, sin respaldo). La vigilancia siguió con
+  `frames=30 failed=0`. `dotnet build` 0 avisos (app incluida), `dotnet test` 208 tests (tres pasadas seguidas).
+- Latido con retraso en el móvil (2026-11-03): en las preferencias de la app se puso como último latido el
+  2026-11-01 a las 09:00 locales y se relanzó el proceso (`am crash`; Android lo relanzó en 3 s con
+  `service restarted by Android`). Al arrancar, el bot escribió `telegram: daily heartbeat written (late)` y el autor
+  recibió "Sigo vivo (con retraso: a las 09:00 no pude).", el tiempo vigilando (0 min, desde el relanzamiento), la
+  batería y "Últimas 24 h: sin cortes de conexión ni de corriente.". Ese envío cuenta como el latido del día: el
+  siguiente toca el 2026-11-04 a las 09:00 en punto.
+- Orientación automática (2026-11-03): `PhotoOrientation` en Core (8 + 4 + 5 casos de prueba: de pie, tumbado a cada
+  lado, boca abajo, torcido, empate a 45°, plano y el giro del JPEG); `GravityReader` en la app toma una sola lectura
+  del acelerómetro por foto. En el OPPO, con `/foto` de pie, tumbado con la parte de arriba a la derecha y a la
+  izquierda: el registro detectó 0, 90 y 270 y escribió 90, 180 y 0 en el JPEG; el autor recibió las tres derechas.
+  Tiempos con la foto grande: la cámara la da en 0,6-1,0 s (187-224 KB) y la subida a Telegram tarda 0,6-0,7 s; unos
+  envíos anteriores tardaron 8-20 s en total y no se repitieron con un wifi de -53 dBm a 433 Mbps: el registro
+  apunta ahora el tamaño y el tiempo de la cámara para saber qué parte es la lenta si vuelve a pasar. `dotnet test`
+  225 tests.
+- Juez de la fase 2 (2026-11-03, `verificacion/2026-11-03-fase2-juez-wifi.md`): el autor no podía apagar el router y
+  se apagó el wifi del OPPO por `adb` 10 min (sin datos móviles, se queda sin internet igual). Primer corte: volvió
+  solo (`online again after 811 s`), contestó el `/estado` mandado durante el corte y el autor recibió el aviso de
+  reconexión; pero el corte llegó como `WebException`, que el cliente no reconocía (línea `error` y 5 min de espera de
+  golpe), y tardó 3,5 min en notar la vuelta del wifi. Arreglos (DECISIONS 023): cualquier fallo al hablar con
+  Telegram es "sin red", y el bot reintenta en cuanto Android avisa de que hay red (`TelegramPoller.RetryNow`,
+  `NetworkWatcher`). Segundo corte, con los arreglos: `offline` sin línea `error`, `network back; retrying now` y
+  `online again after 606 s` 7 s después de volver el wifi, y `/estado` contestado. La vigilancia siguió con
+  `frames=30 failed=0` en los dos cortes. Veredicto: PASA. 6 tests nuevos (`WebException`, `SocketException` e
+  `IOException` como "sin red"; `RetryNow` corta la espera, no hace nada mientras sondea y no reinicia la espera
+  creciente); `dotnet test` 231 tests (cinco pasadas seguidas).
