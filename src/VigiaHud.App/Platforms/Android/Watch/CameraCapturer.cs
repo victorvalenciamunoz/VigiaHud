@@ -76,6 +76,9 @@ public sealed class CameraCapturer : IDisposable
         _recovery.SetReferenceCounted(false);
     }
 
+    /// <summary>How the back camera's sensor is mounted, clockwise from the phone upright (90 on the OPPO).</summary>
+    public int SensorOrientation { get; private set; } = 90;
+
     /// <summary>Opens the camera and starts the stream in the background.</summary>
     public void Open() => _handler.Post(OpenOnCameraThread);
 
@@ -201,6 +204,11 @@ public sealed class CameraCapturer : IDisposable
             }
 
             _cameraId = id;
+            if (characteristics.Get(CameraCharacteristics.SensorOrientation) is Integer mounting)
+            {
+                SensorOrientation = mounting.IntValue();
+            }
+
             _size = PickSize(characteristics);
             _reader = ImageReader.NewInstance(_size.Width, _size.Height, ImageFormatType.Yuv420888, 2);
             _reader.SetOnImageAvailableListener(new ImageListener(this), _handler);

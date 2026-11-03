@@ -39,11 +39,8 @@ public sealed class WatchService : Service
     /// <summary>How long a large photo may take before <c>/foto</c> falls back to a stream frame.</summary>
     private static readonly TimeSpan StillTimeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>
-    /// How much photos turn to stand upright, written into the JPEG: 90 for the phone standing upright, the sensor's
-    /// mounting on the OPPO (DECISIONS 021). Where the phone will stand is not decided yet.
-    /// </summary>
-    private const int PhotoOrientation = 90;
+    /// <summary>Which way the phone stands, read once per photo so the photo comes out upright (DECISIONS 022).</summary>
+    private Platforms.Android.Device.GravityReader? _gravity;
 
     private static readonly object Gate = new();
     private static bool _isRunning;
@@ -248,8 +245,14 @@ public sealed class WatchService : Service
         {
             try
             {
-                if (await camera.TakeStillAsync(PhotoOrientation).WaitAsync(StillTimeout, cancellationToken).ConfigureAwait(false) is { } still)
+                _gravity ??= new Platforms.Android.Device.GravityReader(this);
+                var rotation = await _gravity.RotationAsync(cancellationToken).ConfigureAwait(false);
+                var turn = VigiaHud.Core.Device.PhotoOrientation.JpegOrientation(camera.SensorOrientation, rotation);
+                var asked = System.Diagnostics.Stopwatch.StartNew();
+                if (await camera.TakeStillAsync(turn).WaitAsync(StillTimeout, cancellationToken).ConfigureAwait(false) is { } still)
                 {
+                    // What is left until "telegram: answered /foto" is the upload.
+                    _log?.Write(LogKind.Info, $"photo: phone rotated {rotation}, jpeg turned {turn}, {still.Length / 1024} KB in {asked.ElapsedMilliseconds} ms");
                     return still;
                 }
             }

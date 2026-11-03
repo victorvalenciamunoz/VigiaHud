@@ -87,7 +87,7 @@ historia completa está en `docs/historia.md`.
   - [x] Latido diario con retraso, en el móvil (2026-11-03).
   - [ ] El primer latido diario a las 09:00 en punto (2026-11-04).
   - [ ] Juez de la fase 2: cortar el wifi del router 10 min y comprobar que vuelve solo y avisa del corte.
-  - [ ] Decidir dónde se coloca el móvil (de pie o tumbado) para la orientación de las fotos; ahora, de pie.
+  - [x] Fotos derechas en cualquier posición del móvil, con el acelerómetro (DECISIONS 022, 2026-11-03).
 
 ### Cómo se validó
 
@@ -148,3 +148,11 @@ historia completa está en `docs/historia.md`.
   recibió "Sigo vivo (con retraso: a las 09:00 no pude).", el tiempo vigilando (0 min, desde el relanzamiento), la
   batería y "Últimas 24 h: sin cortes de conexión ni de corriente.". Ese envío cuenta como el latido del día: el
   siguiente toca el 2026-11-04 a las 09:00 en punto.
+- Orientación automática (2026-11-03): `PhotoOrientation` en Core (8 + 4 + 5 casos de prueba: de pie, tumbado a cada
+  lado, boca abajo, torcido, empate a 45°, plano y el giro del JPEG); `GravityReader` en la app toma una sola lectura
+  del acelerómetro por foto. En el OPPO, con `/foto` de pie, tumbado con la parte de arriba a la derecha y a la
+  izquierda: el registro detectó 0, 90 y 270 y escribió 90, 180 y 0 en el JPEG; el autor recibió las tres derechas.
+  Tiempos con la foto grande: la cámara la da en 0,6-1,0 s (187-224 KB) y la subida a Telegram tarda 0,6-0,7 s; unos
+  envíos anteriores tardaron 8-20 s en total y no se repitieron con un wifi de -53 dBm a 433 Mbps: el registro
+  apunta ahora el tamaño y el tiempo de la cámara para saber qué parte es la lenta si vuelve a pasar. `dotnet test`
+  225 tests.

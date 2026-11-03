@@ -342,3 +342,16 @@ Formato: contexto → decisión → alternativas descartadas.
   todo el flujo de vigilancia a 1280×960 (descartado: más consumo continuo para una foto que se pide de vez en
   cuando); abrir una sesión nueva solo para la foto (descartado: la exposición tendría que volver a ajustarse y las
   fotos sueltas sin flujo salían negras, DECISIONS 008).
+
+## 022 — Las fotos se ponen derechas solas, con el acelerómetro
+- Contexto: el sensor de la cámara del OPPO está montado a 90°; una foto sale derecha solo si se le escribe el giro
+  que corresponde a cómo está el móvil. El autor todavía no sabe si lo colocará de pie o tumbado, y tumbado puede
+  quedar hacia cualquiera de los dos lados.
+- Decisión (del autor, 2026-11-03): orientación automática. En cada foto la app lee una vez el acelerómetro, saca la
+  rotación del móvil al cuarto de vuelta más cercano (la regla de `OrientationEventListener` de Android: plano si la
+  inclinación no llega a unos 27°) y escribe en el JPEG el montaje del sensor más esa rotación
+  (`PhotoOrientation` en Core, `GravityReader` en la app). Plano, o sin lectura en 1 s, cuenta la última posición
+  conocida y, antes de ninguna, de pie. El sensor solo se escucha durante ese momento: no gasta mientras vigila. La
+  foto de respaldo (el fotograma de 320×240) no se gira.
+- Alternativas: un giro fijo para el móvil de pie o tumbado (descartado: hay que acertar el lado y deja de valer si
+  se recoloca); un ajuste en la app (descartado: una decisión más para el dueño sin ganar nada).
