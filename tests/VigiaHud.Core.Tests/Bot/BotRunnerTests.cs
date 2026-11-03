@@ -88,6 +88,22 @@ public sealed class BotRunnerTests : IAsyncDisposable
 
         Assert.Equal([(Owner, BotTexts.Help)], _telegram.Sent);
         Assert.Contains(_log.Lines, l => l.Message.Contains("ignored message from chat 999888777"));
+        Assert.Contains(_log.Lines, l => l.Message == "telegram: answered /ayuda");
+    }
+
+    [Fact]
+    public async Task Each_answer_leaves_a_line_without_the_owners_words()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _telegram.Returns(Messages((Owner, "/estado"), (Owner, "/foto"), (Owner, "mi clave es 1234")));
+
+        Run();
+        await SentAsync(3);
+
+        Assert.Equal(
+            ["telegram: answered /estado", "telegram: answered /foto", "telegram: answered other text"],
+            _log.Lines.Select(l => l.Message).Where(m => m.StartsWith("telegram: answered", StringComparison.Ordinal)));
+        Assert.DoesNotContain(_log.Lines, l => l.Message.Contains("1234"));
     }
 
     [Fact]

@@ -77,7 +77,8 @@ public sealed class BotRunner
 
     private async Task HandleAsync(IncomingMessage message, CancellationToken cancellationToken)
     {
-        switch (_brain.Decide(message))
+        var decision = _brain.Decide(message);
+        switch (decision)
         {
             case BotDecision.Ignore ignore:
                 if (ignore.LogLine is { } line)
@@ -111,9 +112,20 @@ public sealed class BotRunner
                 break;
         }
 
+        // Proof for the judge that the owner was answered; never the owner's own words, only what was asked.
+        _log.Write(LogKind.Info, $"telegram: answered {Asked(decision)}");
+
         // The owner just reached us: Telegram works, a good moment for what was waiting.
         await Outbox.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private static string Asked(BotDecision decision) => decision switch
+    {
+        BotDecision.SendStatus => "/estado",
+        BotDecision.SendPhoto => "/foto",
+        BotDecision.Reply { Text: BotTexts.Help } => "/ayuda",
+        _ => "other text",
+    };
 
     private async Task ReconnectedAsync(Outage outage, CancellationToken cancellationToken)
     {

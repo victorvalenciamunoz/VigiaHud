@@ -58,6 +58,19 @@ historia completa está en `docs/historia.md`.
 - En el PC: el bot existe (creado por el autor con @BotFather, sin poder unirse a grupos); el token y el chat ID del
   dueño están en los secretos de usuario con id `vigiahud`, fuera del repo. `scripts/record-telegram-fixtures.cs`
   graba respuestas reales de la Bot API con los datos personales sustituidos.
+- En el móvil (paso 5, DECISIONS 021): `scripts/push-telegram-secrets.ps1` copia el token y el chat ID de los secretos
+  del PC a `files/telegram.json`, en el almacenamiento privado de la app (permisos 600), sin fichero temporal ni nada
+  en pantalla. `WatchService` lee ese fichero al arrancar (`TelegramSecrets` en Core) y pone en marcha `BotRunner` en
+  su propio hilo; sin el fichero, la vigilancia sigue como en la fase 1 y lo apunta. `AndroidBotEnvironment` da la
+  zona del móvil, la batería y el tiempo vigilando; `PreferencesBotMemory` guarda la hora del último latido.
+  `/foto` toma una foto aparte de 1280×960 en la sesión de cámara que ya está en marcha (exposición ya ajustada, sin
+  flash, con la orientación escrita en el JPEG: 90° para el móvil de pie); si la cámara no la da en 5 s, envía el
+  último fotograma de la vigilancia. Cada respuesta deja `telegram: answered /estado|/foto|/ayuda|other text` en el
+  registro, nunca las palabras del dueño.
+- Menos CPU en la vigilancia: la conversión de cada fotograma a JPEG copiaba los colores píxel a píxel a través del
+  puente con Java (unas 38 000 llamadas cada 2 s); ahora copia cada plano una vez. Medido con `/proc` en el OPPO, en
+  ventanas de 20 s: la app pasa del 51 % al 21-23 % de un núcleo (el hilo de cámara, del 41 % al 10,6 %); el servicio de
+  cámara del sistema pasa del 94 % (una medida) al 101-106 %, quizá por tener preparada la salida de la foto grande.
 
 ### Qué falta
 
@@ -69,8 +82,11 @@ historia completa está en `docs/historia.md`.
   - [x] 4.1 Latido diario a las 09:00 con el resumen, con retraso si hace falta, y cola de salida (2026-10-29).
   - [x] 4.2 Avisos de corriente perdida (a los 10 min, con el margen estimado) y recuperada, batería baja al 15 % y
     exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido (2026-10-29).
-- [ ] Paso 5 — En el móvil, tras el veredicto de la fase 1: token y chat ID fuera de git, todo conectado al servicio,
-  y el juez de la fase 2 (cortar el wifi del router 10 min).
+- [ ] Paso 5 — En el móvil (DECISIONS 021):
+  - [x] Token y chat ID en el móvil fuera de git, el bot conectado al servicio, `/foto` a 1280×960 (2026-11-03).
+  - [ ] El primer latido diario a las 09:00 (2026-11-04).
+  - [ ] Juez de la fase 2: cortar el wifi del router 10 min y comprobar que vuelve solo y avisa del corte.
+  - [ ] Decidir dónde se coloca el móvil (de pie o tumbado) para la orientación de las fotos; ahora, de pie.
 
 ### Cómo se validó
 
@@ -117,3 +133,11 @@ historia completa está en `docs/historia.md`.
   hora. `BotTextsTests`: los cuatro textos nuevos y el resumen con cortes de conexión y de corriente.
   `BotRunnerTests`: el aviso de corriente sale a los 10 min simulados, ni uno antes, y el de exclusión al arrancar.
   `dotnet build` 0 avisos (app incluida), `dotnet test` 194 tests (cinco pasadas seguidas).
+- Paso 5 (2026-11-03): 14 tests nuevos (`TelegramSecretsTests`: el fichero bueno, chat de grupo, diez formas de
+  fichero malo, entre ellas un chat ID entre comillas que hacía saltar una excepción, y que imprimirlo no muestra el
+  token; `BotRunnerTests`: cada respuesta deja su línea sin las palabras del dueño). En el OPPO: el script copió los
+  secretos (78 bytes, `-rw-------`; la primera vez llevaban delante la marca BOM que añade Windows PowerShell, ya
+  evitada); tras instalar, `telegram: bot started` sin errores; el autor mandó `/estado`, `/ayuda`, un texto y `/foto`
+  desde su Telegram y recibió el estado, la lista, el "No te entiendo" y la foto; con la foto grande, `/foto` llegó a
+  1280×960 y derecha con el móvil de pie (`telegram: answered /foto`, sin respaldo). La vigilancia siguió con
+  `frames=30 failed=0`. `dotnet build` 0 avisos (app incluida), `dotnet test` 208 tests (tres pasadas seguidas).
