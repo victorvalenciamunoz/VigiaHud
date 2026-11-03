@@ -84,7 +84,8 @@ historia completa está en `docs/historia.md`.
     exclusión de batería perdida; los cortes de luz cortos, solo en el resumen del latido (2026-10-29).
 - [ ] Paso 5 — En el móvil (DECISIONS 021):
   - [x] Token y chat ID en el móvil fuera de git, el bot conectado al servicio, `/foto` a 1280×960 (2026-11-03).
-  - [ ] El primer latido diario a las 09:00 (2026-11-04).
+  - [x] Latido diario con retraso, en el móvil (2026-11-03).
+  - [ ] El primer latido diario a las 09:00 en punto (2026-11-04).
   - [ ] Juez de la fase 2: cortar el wifi del router 10 min y comprobar que vuelve solo y avisa del corte.
   - [ ] Decidir dónde se coloca el móvil (de pie o tumbado) para la orientación de las fotos; ahora, de pie.
 
@@ -141,3 +142,9 @@ historia completa está en `docs/historia.md`.
   desde su Telegram y recibió el estado, la lista, el "No te entiendo" y la foto; con la foto grande, `/foto` llegó a
   1280×960 y derecha con el móvil de pie (`telegram: answered /foto`, sin respaldo). La vigilancia siguió con
   `frames=30 failed=0`. `dotnet build` 0 avisos (app incluida), `dotnet test` 208 tests (tres pasadas seguidas).
+- Latido con retraso en el móvil (2026-11-03): en las preferencias de la app se puso como último latido el
+  2026-11-01 a las 09:00 locales y se relanzó el proceso (`am crash`; Android lo relanzó en 3 s con
+  `service restarted by Android`). Al arrancar, el bot escribió `telegram: daily heartbeat written (late)` y el autor
+  recibió "Sigo vivo (con retraso: a las 09:00 no pude).", el tiempo vigilando (0 min, desde el relanzamiento), la
+  batería y "Últimas 24 h: sin cortes de conexión ni de corriente.". Ese envío cuenta como el latido del día: el
+  siguiente toca el 2026-11-04 a las 09:00 en punto.
