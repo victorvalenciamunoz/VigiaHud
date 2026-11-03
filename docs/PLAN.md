@@ -1,7 +1,6 @@
 # Plan
 
-**Fase actual: 1** (esperando el veredicto del juez de 72 h; mientras tanto la fase 2 avanza solo en Core y tests,
-sin tocar el móvil: `DECISIONS.md` 015)
+**Fase actual: 2** (la fase 1 se cerró el 2026-11-03; su historia está en `docs/historia.md`)
 
 ---
 

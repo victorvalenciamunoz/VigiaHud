@@ -98,6 +98,8 @@ StyleCopReport.xml
 *.tmp_proj
 *_wpftmp.csproj
 *.log
+# Except the logs pulled from the phone: they are the judge's evidence (CLAUDE.md, docs/verificacion).
+!docs/verificacion/*.log
 *.tlog
 *.vspscc
 *.vssscc
