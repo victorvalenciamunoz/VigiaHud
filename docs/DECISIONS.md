@@ -355,3 +355,20 @@ Formato: contexto → decisión → alternativas descartadas.
   foto de respaldo (el fotograma de 320×240) no se gira.
 - Alternativas: un giro fijo para el móvil de pie o tumbado (descartado: hay que acertar el lado y deja de valer si
   se recoloca); un ajuste en la app (descartado: una decisión más para el dueño sin ganar nada).
+
+## 023 — Cualquier fallo de red es "sin red", y se reintenta en cuanto Android avisa
+- Contexto: juez de la fase 2 (2026-11-03). En el OPPO, el componente de red nativo de Android que usa `HttpClient`
+  lanza `WebException` al perder la red, no `HttpRequestException` ni `IOException`, los dos que el cliente
+  reconocía: el bucle lo trató como error inesperado, lo apuntó como `error` y esperó 5 min de golpe. Además, tras
+  un corte largo la espera creciente llega a 5 min, y el bot tardó 3,5 min en notar que el wifi había vuelto.
+- Decisión:
+  - `TelegramClient`: cualquier excepción al enviar o leer la petición, salvo una cancelación pedida por quien llama,
+    es `TelegramUnavailableException` con el nombre del tipo y el token oculto. Los errores inesperados del bucle
+    quedan para lo que no sea hablar con Telegram.
+  - `TelegramPoller.RetryNow` corta la espera en curso; `NetworkWatcher` en la app lo llama cuando Android avisa de
+    que hay una red disponible (`ConnectivityManager.registerDefaultNetworkCallback`, API 24+; permiso
+    `ACCESS_NETWORK_STATE`, que ya estaba). Si el reintento falla, la espera sigue creciendo donde iba: una red sin
+    internet no puede hacer que el bot reintente sin parar. (Decisión del autor: reintentar al volver la red.)
+- Alternativas: enumerar los tipos de error de cada plataforma (descartado: el siguiente que no estuviera en la lista
+  volvería a tratarse como inesperado); bajar el máximo de espera de 5 min (descartado: más intentos inútiles durante
+  cortes largos sin resolver el caso del wifi que vuelve).

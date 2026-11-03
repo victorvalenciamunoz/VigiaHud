@@ -61,6 +61,7 @@ public sealed class WatchService : Service
     private readonly object _frameGate = new();
     private (byte[] Jpeg, DateTimeOffset At)? _latestFrame;
     private CancellationTokenSource? _botStop;
+    private NetworkWatcher? _network;
 
     public static bool IsRunning
     {
@@ -292,6 +293,13 @@ public sealed class WatchService : Service
         var client = new TelegramClient(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }, secrets.Token);
         var runner = new BotRunner(client, secrets.ChatId, environment, new PreferencesBotMemory(), _clock!, _log!);
         var log = _log!;
+        _network = new NetworkWatcher(this, () =>
+        {
+            if (runner.NetworkAvailable())
+            {
+                log.Write(LogKind.Info, "telegram: network back; retrying now");
+            }
+        });
         _botStop = new CancellationTokenSource();
         var stop = _botStop.Token;
         _ = Task.Run(async () =>
@@ -312,6 +320,8 @@ public sealed class WatchService : Service
 
     private void StopBot()
     {
+        _network?.Dispose();
+        _network = null;
         _botStop?.Cancel();
         _botStop?.Dispose();
         _botStop = null;

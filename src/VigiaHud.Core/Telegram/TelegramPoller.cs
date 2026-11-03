@@ -23,10 +23,12 @@ public sealed class TelegramPoller
     private readonly TimeSpan _pollWait;
     private readonly List<Outage> _unreported = [];
 
+    private readonly object _napGate = new();
     private TimeSpan _nextRetry = FirstRetry;
     private DateTimeOffset? _outageStart;
     private int _failedAttempts;
     private string _lastReason = string.Empty;
+    private CancellationTokenSource? _nap;
 
     public TelegramPoller(ITelegramClient client, TimeProvider clock, IWatchLog log, TimeSpan? pollWait = null)
     {
@@ -41,6 +43,26 @@ public sealed class TelegramPoller
 
     /// <summary>The offset of the next poll: every update before it has been handled.</summary>
     public long? Offset { get; private set; }
+
+    /// <summary>
+    /// Ends the wait between failed polls at once, for when the phone says the network is back (DECISIONS 023): the
+    /// wait may have grown to 5 min, and the network is known to work now. The waits keep growing if the next poll
+    /// fails too, so a phone that announces a network without internet cannot make the bot spin.
+    /// </summary>
+    /// <returns>Whether a wait was cut; false while polling, or when all is well.</returns>
+    public bool RetryNow()
+    {
+        lock (_napGate)
+        {
+            if (_nap is null || _nap.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            _nap.Cancel();
+            return true;
+        }
+    }
 
     /// <summary>
     /// Polls until <paramref name="cancellationToken"/> is cancelled, which ends it quietly.
@@ -74,13 +96,30 @@ public sealed class TelegramPoller
             {
                 // Never out of the loop: a bot that stops listening is worse than one that retries too much.
                 var wait = Fail(error);
+                using var nap = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                lock (_napGate)
+                {
+                    _nap = nap;
+                }
+
                 try
                 {
-                    await Task.Delay(wait, _clock, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(wait, _clock, nap.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
                 }
                 catch (OperationCanceledException)
                 {
-                    return;
+                    // Cut short by RetryNow: poll now.
+                }
+                finally
+                {
+                    lock (_napGate)
+                    {
+                        _nap = null;
+                    }
                 }
             }
         }

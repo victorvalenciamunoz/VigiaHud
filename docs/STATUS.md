@@ -86,7 +86,8 @@ historia completa está en `docs/historia.md`.
   - [x] Token y chat ID en el móvil fuera de git, el bot conectado al servicio, `/foto` a 1280×960 (2026-11-03).
   - [x] Latido diario con retraso, en el móvil (2026-11-03).
   - [ ] El primer latido diario a las 09:00 en punto (2026-11-04).
-  - [ ] Juez de la fase 2: cortar el wifi del router 10 min y comprobar que vuelve solo y avisa del corte.
+  - [x] Juez de la fase 2: 10 min sin red (wifi del móvil apagado por `adb`, en lugar del router); vuelve solo y avisa
+    del corte. PASA en el segundo intento, tras los arreglos de DECISIONS 023 (2026-11-03).
   - [x] Fotos derechas en cualquier posición del móvil, con el acelerómetro (DECISIONS 022, 2026-11-03).
 
 ### Cómo se validó
@@ -156,3 +157,14 @@ historia completa está en `docs/historia.md`.
   envíos anteriores tardaron 8-20 s en total y no se repitieron con un wifi de -53 dBm a 433 Mbps: el registro
   apunta ahora el tamaño y el tiempo de la cámara para saber qué parte es la lenta si vuelve a pasar. `dotnet test`
   225 tests.
+- Juez de la fase 2 (2026-11-03, `verificacion/2026-11-03-fase2-juez-wifi.md`): el autor no podía apagar el router y
+  se apagó el wifi del OPPO por `adb` 10 min (sin datos móviles, se queda sin internet igual). Primer corte: volvió
+  solo (`online again after 811 s`), contestó el `/estado` mandado durante el corte y el autor recibió el aviso de
+  reconexión; pero el corte llegó como `WebException`, que el cliente no reconocía (línea `error` y 5 min de espera de
+  golpe), y tardó 3,5 min en notar la vuelta del wifi. Arreglos (DECISIONS 023): cualquier fallo al hablar con
+  Telegram es "sin red", y el bot reintenta en cuanto Android avisa de que hay red (`TelegramPoller.RetryNow`,
+  `NetworkWatcher`). Segundo corte, con los arreglos: `offline` sin línea `error`, `network back; retrying now` y
+  `online again after 606 s` 7 s después de volver el wifi, y `/estado` contestado. La vigilancia siguió con
+  `frames=30 failed=0` en los dos cortes. Veredicto: PASA. 6 tests nuevos (`WebException`, `SocketException` e
+  `IOException` como "sin red"; `RetryNow` corta la espera, no hace nada mientras sondea y no reinicia la espera
+  creciente); `dotnet test` 231 tests (cinco pasadas seguidas).

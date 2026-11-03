@@ -24,6 +24,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
     private Func<IncomingMessage, Task> _onMessage = _ => Task.CompletedTask;
     private Func<Outage, Task> _onReconnected = _ => Task.CompletedTask;
     private Task? _run;
+    private TelegramPoller? _poller;
 
     public async ValueTask DisposeAsync()
     {
@@ -226,6 +227,50 @@ public sealed class TelegramPollerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Retry_now_ends_the_wait_at_once_when_the_network_is_back()
+    {
+        _telegram.FailsTimes(8, NoNetwork).Returns(UpdateBatch.Empty);
+
+        Run();
+        // Eight failures: the wait has grown to 256 s.
+        for (var i = 1; i <= 7; i++)
+        {
+            await AdvanceAsync(timers: i, TimeSpan.FromSeconds(Math.Pow(2, i)));
+        }
+
+        await _clock.WaitForTimersAsync(8);
+        Assert.Equal(8, _telegram.Polls.Count);
+
+        Assert.True(_poller!.RetryNow());
+        await _telegram.WaitForPollsAsync(9);
+        Assert.Contains(_log.Lines, l => l.Message.StartsWith("telegram: online again", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Retry_now_while_polling_does_nothing()
+    {
+        Run();
+        await _telegram.WaitForPollsAsync(1);
+
+        Assert.False(_poller!.RetryNow());
+    }
+
+    [Fact]
+    public async Task After_a_retry_now_that_fails_the_waits_keep_growing()
+    {
+        _telegram.FailsTimes(3, NoNetwork);
+
+        Run();
+        await AdvanceAsync(timers: 1, TimeSpan.FromSeconds(2));
+        await _clock.WaitForTimersAsync(2);
+        Assert.True(_poller!.RetryNow());
+        await _telegram.WaitForPollsAsync(3);
+
+        // The third failure waits 8 s, not 2: a network without internet cannot make the bot spin.
+        await NoPollUntilAsync(TimeSpan.FromSeconds(8), next: 4, timers: 3);
+    }
+
+    [Fact]
     public async Task Cancelling_ends_the_loop_quietly_while_polling_or_waiting()
     {
         _telegram.Fails(NoNetwork);
@@ -252,6 +297,7 @@ public sealed class TelegramPollerTests : IAsyncDisposable
     private void Run()
     {
         var poller = new TelegramPoller(_telegram, _clock, _log);
+        _poller = poller;
         _run = poller.RunAsync(
             async (message, _) =>
             {

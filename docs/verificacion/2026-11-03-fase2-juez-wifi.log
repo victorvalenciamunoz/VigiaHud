@@ -1,0 +1,60 @@
+2026-11-03T10:41:37.828Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:41:44.874Z	error	telegram: poll failed: WebException: Read error: ssl=0x7c232eaa48: I/O error during system call, Software caused connection abort; retrying in 300 s
+2026-11-03T10:41:45.008Z	info	telegram: offline (Read error: ssl=0x7c232eaa48: I/O error during system call, Software caused connection abort); retrying in 300 s
+2026-11-03T10:42:38.035Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:43:38.173Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:44:38.319Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:45:38.533Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:46:38.713Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:47:38.855Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:48:39.014Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:49:39.175Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:49:39.197Z	heartbeat	uptime=40m battery=100% plugged=yes temp=30.1C doze_exempt=yes
+2026-11-03T10:49:41.224Z	info	snapshot 20261103-104941Z.jpg (1 KB)
+2026-11-03T10:50:39.352Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:51:39.516Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:52:39.731Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:53:39.871Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:54:40.011Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:55:15.922Z	info	telegram: online again after 811 s (9 failed polls)
+2026-11-03T10:55:16.317Z	info	telegram: answered /estado
+2026-11-03T10:55:40.216Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:56:40.454Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:57:40.590Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:58:40.769Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:59:40.935Z	capture	frames=30 failed=0 period=60s
+2026-11-03T10:59:40.957Z	heartbeat	uptime=50m battery=100% plugged=yes temp=29.9C doze_exempt=yes
+2026-11-03T10:59:42.961Z	info	snapshot 20261103-105942Z.jpg (1 KB)
+2026-11-03T11:00:41.134Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:01:41.248Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:02:41.431Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:03:41.618Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:04:41.786Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:05:41.972Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:06:42.132Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:07:42.319Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:08:42.477Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:08:59.577Z	start	app opened v0.1.0
+2026-11-03T11:08:59.916Z	info	update: service start requested
+2026-11-03T11:09:00.075Z	start	service started
+2026-11-03T11:09:00.090Z	info	battery optimization ignored=yes
+2026-11-03T11:09:00.395Z	info	camera 0 opening at 320x240, photos at 1280x960
+2026-11-03T11:09:00.900Z	info	telegram: bot started
+2026-11-03T11:09:00.969Z	info	camera ready, 15-15 fps
+2026-11-03T11:09:02.423Z	info	snapshot 20261103-110902Z.jpg (1 KB)
+2026-11-03T11:09:27.135Z	info	telegram: offline (getUpdates: WebException: Read error: ssl=0x7c232c9988: I/O error during system call, Software caused connection abort); retrying in 2 s
+2026-11-03T11:10:00.380Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:11:00.500Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:12:00.726Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:13:00.875Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:14:01.091Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:15:01.225Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:16:01.447Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:17:01.628Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:18:01.793Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:19:01.968Z	capture	frames=30 failed=0 period=60s
+2026-11-03T11:19:02.028Z	heartbeat	uptime=10m battery=100% plugged=yes temp=30.1C doze_exempt=yes
+2026-11-03T11:19:03.994Z	info	snapshot 20261103-111903Z.jpg (1 KB)
+2026-11-03T11:19:32.180Z	info	telegram: network back; retrying now
+2026-11-03T11:19:33.542Z	info	telegram: online again after 606 s (9 failed polls)
+2026-11-03T11:19:34.594Z	info	telegram: answered /estado

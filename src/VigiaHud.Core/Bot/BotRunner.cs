@@ -66,6 +66,10 @@ public sealed class BotRunner
     /// <summary>Where the bot's own messages wait for the network: heartbeat, outage, power and battery notices.</summary>
     public Outbox Outbox { get; }
 
+    /// <summary>The phone says the network is back: if the bot was waiting to retry, it retries now (DECISIONS 023).</summary>
+    /// <returns>Whether a wait was cut.</returns>
+    public bool NetworkAvailable() => _poller.RetryNow();
+
     /// <summary>Runs both loops until cancelled; never ends on its own.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {

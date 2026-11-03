@@ -158,6 +158,29 @@ public class TelegramClientTests
         Assert.Null(error.InnerException);
     }
 
+    [Theory]
+    [InlineData("web")]
+    [InlineData("socket")]
+    [InlineData("io")]
+    public async Task Any_failure_to_talk_is_unavailable_whatever_its_type(string kind)
+    {
+        // Android's native handler throws a WebException when the network goes, not an HttpRequestException.
+        Exception error = kind switch
+        {
+#pragma warning disable SYSLIB0014 // WebException is what Android's handler throws; the test only needs its type.
+            "web" => new WebException("Read error: ssl=0x7c: I/O error during system call, Software caused connection abort"),
+#pragma warning restore SYSLIB0014
+            "socket" => new System.Net.Sockets.SocketException(10051),
+            _ => new IOException("Connection reset by peer"),
+        };
+        _handler.Throw(error);
+
+        var unavailable = await Assert.ThrowsAsync<TelegramUnavailableException>(
+            () => _client.GetUpdatesAsync(null, TimeSpan.Zero, CancellationToken.None));
+
+        Assert.StartsWith($"getUpdates: {error.GetType().Name}: ", unavailable.Message);
+    }
+
     [Fact]
     public async Task A_poll_that_never_answers_times_out_as_unavailable()
     {
