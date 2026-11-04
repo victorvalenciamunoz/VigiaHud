@@ -40,4 +40,6 @@ persona hay que quedarse fuera de la imagen (si se sale, se etiqueta).
 
 | Grabación | Inicio (UTC) | Duración | Fotos | Etiquetas | Tamaño | SHA-256 |
 |---|---|---|---|---|---|---|
-| 20261104-100319Z-prueba-1 | 2026-11-04 10:03 | 01:00 | 60 | sin nadie | 1,5 MB | `36b34fc8510fd90a6931fede163833ce5a1e278a57f8c6871759f0caea398171` |
+| 20261104-112159Z-persona-cruza | 2026-11-04 11:21 | 01:00 | 60 | sin etiquetar | 1,4 MB | `6223d2a6cd88eb2d43452e83860c144c834dcbf7386f32f39d6bf8ddbdd16ed4` |
+
+`prueba-1` (la primera prueba del paso 1) se borró: estaba grabada con otro fondo y no sirve para el lote.
