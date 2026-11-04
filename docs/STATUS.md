@@ -43,9 +43,10 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   `%USERPROFILE%\.vigiahud\secuencias\`:
   - `info`: la tabla Markdown de `docs/secuencias.md`, con las grabaciones dañadas o las etiquetas mal escritas
     señaladas (y código de salida 1).
-  - `hoja <grabación>`: una página junto a la grabación, con las fotos dentro, para mirarlas y etiquetarlas tocando la
-    primera y la última de cada tramo; COPIAR da las líneas del `.txt`. Como mucho 600 fotos repartidas;
-    `--desde`, `--hasta` y `--cada N` para un rato concreto.
+  - `hoja <grabación>`: una página junto a la grabación, con las fotos dentro, para mirarlas y etiquetarlas tocando
+    cada foto con alguien (con Mayúsculas, todas desde el toque anterior); las marcadas seguidas son un tramo y COPIAR
+    da las líneas del `.txt`. Lo ya etiquetado que la hoja no enseña se conserva. Como mucho 600 fotos repartidas;
+    `--desde`, `--hasta` y `--cada N` para un rato concreto. Cuenta como persona cualquier parte del cuerpo.
 - `docs/secuencias.md`: cómo se graba y se etiqueta, las escenas del lote 1 y la lista de grabaciones.
 
 ### Qué falta
@@ -90,8 +91,11 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   de Windows, cada error con su línea, los extremos de un tramo, ida y vuelta de las horas; `SequenceSummaryTests`:
   fotos, duración, hueco, fichero cortado y huella). Con la grabación real `prueba-1`: `info` saca su fila y `hoja` su
   página, entera (60 fotos) y de un rato (`--desde 00:20 --hasta 00:29`, 10 fotos); los errores de uso dan un mensaje
-  claro. El JavaScript de la página pasa `node --check` y, con un DOM simulado, tocar 00:22 y 00:25 da
-  `persona 00:22-00:25`. El autor abrió la página en su navegador: fotos derechas, marcar, quitar y COPIAR bien. Las
+  claro. El JavaScript de la página pasa `node --check`. El autor abrió la página en su navegador: fotos derechas,
+  marcar, quitar y COPIAR bien. Al etiquetar `persona-cruza` tocó foto a foto y dejó fuera dos fotos en las que se le
+  veía; la hoja pasó a marcar una foto por toque. Con un DOM simulado y sus etiquetas: tocar 00:21 y 00:22 junta
+  `00:19-00:20` y `00:23-00:24` en `00:19-00:24`; desmarcar una foto parte el tramo; Mayúsculas marca todo el rato; y
+  una hoja de un rato o de una foto cada 10 s conserva lo que no enseña. Las
   páginas no se miraron desde aquí: llevan las fotos de la casa. `dotnet build` de la solución con 0 avisos;
   `dotnet test` 350 tests, cinco pasadas seguidas.
 

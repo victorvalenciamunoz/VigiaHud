@@ -10,9 +10,10 @@ grabaciones exactas se hizo cada tabla.
 1. Desde Telegram: `/grabar 2 nombre` (2 minutos) o `/grabar 12h nombre`. Nombres neutros: qué pasa, nunca dónde.
 2. En el PC, con el móvil por USB: `powershell -File scripts\pull-recordings.ps1`.
 3. `dotnet run --project src/VigiaHud.Console -- hoja nombre` y abrir la página que dice, en el navegador.
-4. Tocar la primera y la última foto de cada tramo con alguien, COPIAR, y pegarlo en el `.txt` con el mismo nombre que
-   la grabación (lo dice la página). Si no sale nadie, el fichero lleva solo un comentario: así cuenta como "sin nadie".
-   Sin `.txt`, la grabación está sin etiquetar y el juez no la usa.
+4. Tocar cada foto en la que se vea a alguien (con Mayúsculas se marcan todas desde el toque anterior), COPIAR, y
+   pegarlo en el `.txt` con el mismo nombre que la grabación (lo dice la página). **Cuenta como persona cualquier parte
+   del cuerpo**, aunque sea a medias, tras una puerta o movida. Si no sale nadie, el fichero lleva solo un comentario:
+   así cuenta como "sin nadie". Sin `.txt`, la grabación está sin etiquetar y el juez no la usa.
 5. `dotnet run --project src/VigiaHud.Console -- info` y copiar aquí la tabla.
 
 ## Lote 1 (ajuste, en casa del autor)

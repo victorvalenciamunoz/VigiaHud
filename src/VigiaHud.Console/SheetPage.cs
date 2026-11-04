@@ -7,9 +7,11 @@ namespace VigiaHud.Console;
 
 /// <summary>
 /// The page <c>hoja</c> writes: one self-contained HTML file (the photos inside as data, nothing fetched from the
-/// network), in the family's dark palette (DECISIONS 005). Tapping a photo starts a stretch with somebody in, tapping
-/// another ends it; the stretches become the lines of the labels file, ready to copy. Photos come as the sensor gives
-/// them, so they are turned for a phone standing upright, with a button for any other way it stood.
+/// network), in the family's dark palette (DECISIONS 005). Each tap marks or unmarks one photo, with shift a whole run
+/// from the previous tap; runs of marked photos become the lines of the labels file, ready to copy. What is amber is
+/// what gets saved (the first version, a tap to start and a tap to end, was read as one tap per photo and left photos
+/// out; 2026-11-04). Photos come as the sensor gives them, so they are turned for a phone standing upright, with a
+/// button for any other way it stood.
 /// </summary>
 public static class SheetPage
 {
@@ -51,7 +53,6 @@ public static class SheetPage
             figcaption { font: 12px ui-monospace, Consolas, monospace; color: var(--dim); padding: 2px 0; }
             figure.person .frame { border-color: var(--marker); }
             figure.person figcaption { color: var(--marker); }
-            figure.pending .frame { border-color: var(--guide); }
             </style>
             </head>
             <body>
@@ -59,7 +60,8 @@ public static class SheetPage
               <h1>{{name}}</h1>
               <div class="dim">Empieza el {{started}} (hora local) · {{photos.Count}} fotos · {{spacing}}</div>
               <div class="row">
-                <span id="hint">Toca la primera foto en la que se ve a alguien y luego la última.</span>
+                <span>Toca cada foto en la que se vea a alguien, aunque sea a medias o movido; otro toque la desmarca.
+                  Con Mayúsculas pulsada se marcan todas desde el toque anterior.</span>
                 <button id="turn" type="button">Girar</button>
               </div>
               <div class="row" id="chips"></div>
@@ -86,43 +88,86 @@ public static class SheetPage
             </main>
             <script>
             const name = {{System.Text.Json.JsonSerializer.Serialize(header.Name)}};
-            let intervals = [{{existing}}];
-            let pending = null;
+            const existing = [{{existing}}];
             let turn = {{header.SensorOrientation}};
             const two = n => String(n).padStart(2, "0");
             const fmt = t => t >= 3600 ? `${Math.floor(t / 3600)}:${two(Math.floor(t / 60) % 60)}:${two(t % 60)}` : `${two(Math.floor(t / 60))}:${two(t % 60)}`;
             const figures = [...document.querySelectorAll("figure")];
-            function update() {
-              intervals.sort((a, b) => a[0] - b[0]);
-              for (const f of figures) {
-                const t = Number(f.dataset.t);
-                f.classList.toggle("person", intervals.some(([s, e]) => t >= s && t <= e));
-                f.classList.toggle("pending", t === pending);
+            const times = figures.map(f => Number(f.dataset.t));
+            // What this sheet does not show of the stretches already labelled (before or after its window, or between
+            // its photos when it skips some) is kept as it is; only the photos on the sheet can be changed.
+            const onSheet = new Set(times);
+            const outside = [];
+            for (const [s, e] of existing) {
+              let start = null;
+              for (let t = s; t <= e + 1; t++) {
+                const hidden = t <= e && !onSheet.has(t);
+                if (hidden && start === null) start = t;
+                if (!hidden && start !== null) { outside.push([start, t - 1]); start = null; }
               }
-              const chips = document.getElementById("chips");
-              chips.replaceChildren(...intervals.map((iv, i) => {
-                const chip = document.createElement("span");
-                chip.className = "chip";
-                chip.textContent = `persona ${fmt(iv[0])}-${fmt(iv[1])}`;
+            }
+            const marked = new Set(times.filter(t => existing.some(([s, e]) => t >= s && t <= e)));
+            // Stretches that touch or overlap are one.
+            function merge(list) {
+              const result = [];
+              for (const [s, e] of [...list].sort((a, b) => a[0] - b[0])) {
+                const prev = result[result.length - 1];
+                if (prev && s <= prev[1] + 1) prev[1] = Math.max(prev[1], e);
+                else result.push([s, e]);
+              }
+              return result;
+            }
+            let anchor = null;
+            // Runs of marked photos, next to each other on the sheet, are the stretches.
+            function runs() {
+              const result = [];
+              let start = null, end = null;
+              for (const t of times) {
+                if (marked.has(t)) { if (start === null) start = t; end = t; }
+                else if (start !== null) { result.push([start, end]); start = null; }
+              }
+              if (start !== null) result.push([start, end]);
+              return result;
+            }
+            function chip(text, onRemove) {
+              const span = document.createElement("span");
+              span.className = "chip";
+              span.textContent = text;
+              if (onRemove) {
                 const remove = document.createElement("button");
                 remove.type = "button";
                 remove.textContent = "✕";
-                remove.title = "Quitar este tramo";
-                remove.onclick = () => { intervals.splice(i, 1); update(); };
-                chip.append(remove);
-                return chip;
-              }));
+                remove.title = "Desmarcar este tramo";
+                remove.onclick = onRemove;
+                span.append(remove);
+              }
+              return span;
+            }
+            function update() {
+              for (const f of figures) f.classList.toggle("person", marked.has(Number(f.dataset.t)));
+              const shown = runs();
+              document.getElementById("chips").replaceChildren(
+                ...outside.map(([s, e]) => chip(`persona ${fmt(s)}-${fmt(e)} (fuera de esta hoja)`, null)),
+                ...shown.map(([s, e]) => chip(`persona ${fmt(s)}-${fmt(e)}`, () => {
+                  for (const t of times) if (t >= s && t <= e) marked.delete(t);
+                  update();
+                })));
+              const all = merge([...outside, ...shown]);
               document.getElementById("labels").value =
-                [`# ${name}`, ...(intervals.length ? intervals.map(([s, e]) => `persona ${fmt(s)}-${fmt(e)}`) : ["# sin nadie"])].join("\n") + "\n";
-              document.getElementById("hint").textContent = pending === null
-                ? "Toca la primera foto en la que se ve a alguien y luego la última."
-                : `Empieza en ${fmt(pending)}: toca la última foto con alguien (o la misma).`;
+                [`# ${name}`, ...(all.length ? all.map(([s, e]) => `persona ${fmt(s)}-${fmt(e)}`) : ["# sin nadie"])].join("\n") + "\n";
             }
             for (const f of figures) {
-              f.onclick = () => {
+              f.onclick = event => {
                 const t = Number(f.dataset.t);
-                if (pending === null) { pending = t; }
-                else { intervals.push([Math.min(pending, t), Math.max(pending, t)]); pending = null; }
+                if (event.shiftKey && anchor !== null) {
+                  const [a, b] = [times.indexOf(anchor), times.indexOf(t)].sort((x, y) => x - y);
+                  for (let i = a; i <= b; i++) marked.add(times[i]);
+                } else if (marked.has(t)) {
+                  marked.delete(t);
+                } else {
+                  marked.add(t);
+                }
+                anchor = t;
                 update();
               };
             }

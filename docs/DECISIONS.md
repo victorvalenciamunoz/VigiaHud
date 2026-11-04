@@ -423,10 +423,17 @@ Formato: contexto → decisión → alternativas descartadas.
     - `info` saca una fila Markdown por grabación (`SequenceSummary` en Core: fotos, duración, hueco máximo, si está
       cortada, tamaño y SHA-256). Esa tabla es la lista del repo, `docs/secuencias.md`.
     - `hoja` escribe junto a la grabación una página HTML autocontenida (las fotos dentro, nada de la red) con la
-      paleta de la familia. Tocar una foto y otra marca un tramo en ámbar y genera las líneas para COPIAR. Las fotos
-      se giran según el montaje del sensor (de pie), con un botón GIRAR. Como mucho 600 fotos repartidas, para que una
-      noche se abra; `--desde`/`--hasta` para mirar un rato foto a foto y `--cada N` para elegir la separación.
-      El dibujo lo confirmó el autor antes de programarlo.
+      paleta de la familia. Cada toque marca o desmarca una foto en ámbar; con Mayúsculas, todas desde el toque
+      anterior. Las fotos marcadas seguidas son un tramo, y los tramos dan las líneas para COPIAR. Solo cambia lo que
+      se ve: lo ya etiquetado que la hoja no enseña (fuera de su rato, o entre sus fotos si salta algunas) se conserva,
+      y los tramos que se tocan se juntan. Las fotos se giran según el montaje del sensor (de pie), con un botón GIRAR.
+      Como mucho 600 fotos repartidas, para que una noche se abra; `--desde`/`--hasta` para mirar un rato foto a foto y
+      `--cada N` para elegir la separación. El dibujo lo confirmó el autor antes de programarlo. La primera versión
+      (un toque empieza el tramo y otro lo acaba) el autor la usó tocando foto a foto y dejó fotos fuera sin verlo; por
+      eso pasó a una foto por toque: lo que está en ámbar es lo que se guarda (decidido con el autor, 2026-11-04).
+  - **Qué cuenta como persona** (decisión del autor, 2026-11-04): cualquier parte del cuerpo, aunque sea a medias,
+    tras una puerta o movida. Un intruso que asoma o pasa deprisa también tiene que dar aviso, y así no hay que juzgar
+    cuánto cuerpo es "suficiente".
   - El CI compila también la consola (no necesita MAUI).
 - Alternativas: etiquetas en JSON (descartado: el autor las escribe o pega a mano, y una línea por tramo se lee sola);
   dentro de la cabecera de la grabación (descartado: habría que reescribir un fichero de 1 GB para corregir una

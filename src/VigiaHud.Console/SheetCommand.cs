@@ -4,8 +4,7 @@ namespace VigiaHud.Console;
 
 /// <summary>
 /// <c>hoja</c>: a page with the recording's photos, next to the recording and never in the repo (they show the inside
-/// of a home), for the owner to look at and label by tapping the first and the last photo of each stretch with
-/// somebody in (DECISIONS 025). At most <see cref="MaxPhotos"/> photos, evenly spread, so a night still opens; a
+/// of a home), for the owner to look at and label by tapping each photo with somebody in (DECISIONS 025). At most <see cref="MaxPhotos"/> photos, evenly spread, so a night still opens; a
 /// stretch of it can be looked at photo by photo with <c>--desde</c> and <c>--hasta</c>.
 /// </summary>
 public static class SheetCommand
