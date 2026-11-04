@@ -38,7 +38,5 @@ persona hay que quedarse fuera de la imagen (si se sale, se etiqueta).
 
 ## Lista
 
-| Grabación | Inicio (UTC) | Duración | Fotos | Etiquetas | Tamaño | SHA-256 |
-|---|---|---|---|---|---|---|
-Todavía ninguna. Las primeras pruebas (`prueba-1`, `persona-cruza`, `vacia-1`) se borraron para empezar el lote 1 de
+Todavía ninguna (la tabla la saca `info`). Las primeras pruebas (`prueba-1`, `persona-cruza`, `vacia-1`) se borraron para empezar el lote 1 de
 cero, con el móvil ya fijo en su sitio.
