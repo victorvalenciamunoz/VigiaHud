@@ -1,5 +1,6 @@
 using VigiaHud.Core.Bot;
 using VigiaHud.Core.Device;
+using VigiaHud.Core.Recording;
 using Outage = VigiaHud.Core.Telegram.Outage;
 
 namespace VigiaHud.Core.Tests.Bot;
@@ -136,7 +137,7 @@ public class BotTextsTests
         var since = new DateTimeOffset(2026, 10, 29, 2, 12, 0, TimeSpan.Zero); // 03:12 local
 
         Assert.Equal(
-            "Sin corriente desde hoy a las 03:12: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 9 h de margen.",
+            "Sin corriente desde hoy a las 03:12: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 16 h de margen.",
             BotTexts.PowerLost(new PowerNotice.Lost(since, 84), Now, Zone));
     }
 
@@ -155,9 +156,9 @@ public class BotTextsTests
             BotTexts.PowerBack(new PowerNotice.Back(new PowerCut(Now, Now.AddMinutes(80)), 72)));
 
     [Theory]
-    [InlineData(15, "Batería al 15 % y sin cargador: me apagaré en unas 2 h.")]
-    [InlineData(9, "Batería al 9 % y sin cargador: me apagaré en 1 h aproximadamente.")]
-    [InlineData(3, "Batería al 3 % y sin cargador: me apagaré en menos de 1 h.")]
+    [InlineData(15, "Batería al 15 % y sin cargador: me apagaré en unas 3 h.")]
+    [InlineData(5, "Batería al 5 % y sin cargador: me apagaré en 1 h aproximadamente.")]
+    [InlineData(2, "Batería al 2 % y sin cargador: me apagaré en menos de 1 h.")]
     public void Low_battery_says_roughly_when_the_phone_will_die(int percent, string expected) =>
         Assert.Equal(expected, BotTexts.LowBattery(new PowerNotice.LowBattery(percent)));
 
@@ -166,10 +167,67 @@ public class BotTextsTests
         Assert.Equal("Foto de las 12:51.", BotTexts.PhotoCaption(new DateTimeOffset(2026, 10, 29, 11, 51, 30, TimeSpan.Zero), Zone));
 
     [Fact]
-    public void Help_lists_the_three_commands()
+    public void Help_lists_the_commands()
     {
         Assert.Contains("/foto", BotTexts.Help);
         Assert.Contains("/estado", BotTexts.Help);
         Assert.Contains("/ayuda", BotTexts.Help);
+        Assert.Contains("/grabar", BotTexts.Help);
     }
+
+    [Theory]
+    [InlineData(10, "10 s")]
+    [InlineData(90, "1 min 30 s")]
+    [InlineData(120, "2 min")]
+    [InlineData(5400, "1 h 30 min")]
+    [InlineData(8 * 3600, "8 h")]
+    public void Recording_started_says_the_exact_length(int seconds, string length) =>
+        Assert.Equal(
+            $"Grabo «salida-1» durante {length}, una foto por segundo. Te aviso al terminar.",
+            BotTexts.RecordingStarted(Recording("salida-1", TimeSpan.FromSeconds(seconds), 0, 0, null)));
+
+    [Fact]
+    public void Recording_busy_says_how_long_is_left() =>
+        Assert.Equal(
+            "Ya estoy grabando «salida-1»: quedan 1 min 30 s. Para cortarla: /grabar parar.",
+            BotTexts.RecordingBusy(Recording("salida-1", TimeSpan.FromMinutes(2), 0, 0, null), Now.AddSeconds(30)));
+
+    [Fact]
+    public void Recording_without_space_says_how_much_is_left() =>
+        Assert.Equal(
+            "No grabo: quedan 1,2 GB libres en el móvil y tengo que dejar al menos 1,5 GB.",
+            BotTexts.RecordingNoSpace(1_234_000_000));
+
+    [Theory]
+    [InlineData(RecordingEnd.Completed, "Grabación «salida-1» terminada: 120 fotos, 3,5 MB.")]
+    [InlineData(RecordingEnd.Stopped, "Grabación «salida-1» cortada: 120 fotos, 3,5 MB.")]
+    [InlineData(RecordingEnd.LowSpace, "Grabación «salida-1» parada por falta de espacio: 120 fotos, 3,5 MB. Hay que pasarla al PC.")]
+    [InlineData(RecordingEnd.Failed, "Grabación «salida-1» parada por un error: 120 fotos, 3,5 MB. Mira el registro.")]
+    [InlineData(RecordingEnd.Interrupted, "Grabación «salida-1» interrumpida al parar la vigilancia: 120 fotos, 3,5 MB.")]
+    public void Recording_finished_says_how_it_ended_and_its_size(RecordingEnd end, string expected) =>
+        Assert.Equal(expected, BotTexts.RecordingFinished(Recording("salida-1", TimeSpan.FromMinutes(2), 120, 3_520_000, end)));
+
+    [Theory]
+    [InlineData(1, 350_000, "1 foto, 350 KB")]
+    [InlineData(43_200, 1_400_000_000, "43200 fotos, 1,4 GB")]
+    public void Recording_sizes_read_in_the_right_unit(int frames, long bytes, string expected) =>
+        Assert.Contains(expected, BotTexts.RecordingFinished(Recording("x", TimeSpan.FromHours(1), frames, bytes, RecordingEnd.Completed)));
+
+    [Fact]
+    public void A_recording_without_frames_points_to_the_log() =>
+        Assert.Equal(
+            "Grabación «salida-1» terminada sin fotos: la cámara no las daba. Mira el registro.",
+            BotTexts.RecordingFinished(Recording("salida-1", TimeSpan.FromMinutes(2), 0, 0, RecordingEnd.Completed)));
+
+    [Fact]
+    public void Every_recording_problem_has_its_text()
+    {
+        foreach (var problem in Enum.GetValues<RecordingProblem>())
+        {
+            Assert.False(string.IsNullOrWhiteSpace(BotTexts.RecordingProblem(problem)));
+        }
+    }
+
+    private static RecordingState Recording(string name, TimeSpan duration, int frames, long bytes, RecordingEnd? end) =>
+        new(name, $"/data/{name}.vseq", Now, duration, frames, bytes, end);
 }

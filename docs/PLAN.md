@@ -58,3 +58,5 @@ Tabla de falsas alarmas y detecciones perdidas en STATUS.md.
 - Al detectar: ráfaga de 3-5 fotos o clip corto.
 - Rotación de imágenes guardadas en el móvil (límite de espacio).
 - Comportamiento nocturno: decidir qué hacer con poca luz (umbral distinto, avisar de baja visibilidad…).
+- Guardar unos segundos alrededor de cada detección, para traer las falsas alarmas reales al PC y añadirlas a las
+  pruebas (idea de la fase 3, DECISIONS 024).

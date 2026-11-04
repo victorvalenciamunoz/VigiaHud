@@ -1,6 +1,7 @@
 using VigiaHud.Core.Bot;
 using VigiaHud.Core.Device;
 using VigiaHud.Core.Logging;
+using VigiaHud.Core.Recording;
 using VigiaHud.Core.Telegram;
 using VigiaHud.Core.Tests.Support;
 
@@ -25,6 +26,8 @@ public sealed class BotRunnerTests : IAsyncDisposable
     private readonly FakeMemory _memory = new();
     private readonly CancellationTokenSource _stop = new();
     private SteppingClock _clock = new(NineToday.AddHours(4));
+    private readonly string _recordings = Path.Combine(Path.GetTempPath(), "vigiahud-tests", Guid.NewGuid().ToString("N"));
+    private Recorder? _disposeRecorder;
     private Task? _run;
 
     public async ValueTask DisposeAsync()
@@ -36,6 +39,11 @@ public sealed class BotRunnerTests : IAsyncDisposable
         }
 
         _stop.Dispose();
+        _disposeRecorder?.Dispose();
+        if (Directory.Exists(_recordings))
+        {
+            Directory.Delete(_recordings, recursive: true);
+        }
     }
 
     [Fact]
@@ -176,7 +184,7 @@ public sealed class BotRunnerTests : IAsyncDisposable
 
         await SentAsync(1);
         Assert.Equal(
-            "Sin corriente desde hoy a las 13:00: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 9 h de margen.",
+            "Sin corriente desde hoy a las 13:00: se ha desenchufado el cargador o se ha ido la luz. Batería al 84 %, unas 16 h de margen.",
             _telegram.Sent[0].Text);
         Assert.Contains(_log.Lines, l => l.Message.StartsWith("power: unplugged since", StringComparison.Ordinal));
     }
@@ -205,9 +213,76 @@ public sealed class BotRunnerTests : IAsyncDisposable
         Assert.Equal(expected, BotRunner.IsWorthNotifying(outage));
     }
 
-    private void Run()
+    [Fact]
+    public async Task Record_starts_a_recording_and_says_so()
     {
-        var runner = new BotRunner(_telegram, Owner, _environment, _memory, _clock, _log);
+        _memory.LastDailyHeartbeat = NineToday;
+        _telegram.Returns(Messages((Owner, "/grabar 2 salida-1")));
+        var recorder = NewRecorder();
+
+        Run(recorder);
+        await SentAsync(1);
+
+        Assert.Equal("Grabo «salida-1» durante 2 min, una foto por segundo. Te aviso al terminar.", _telegram.Sent[0].Text);
+        Assert.Equal("salida-1", recorder.Current?.Name);
+        Assert.Contains(_log.Lines, l => l.Message == "telegram: answered /grabar");
+    }
+
+    [Fact]
+    public async Task A_recording_that_ends_on_its_own_is_told_by_the_clock()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _telegram.Returns(Messages((Owner, "/grabar 30s salida-1")));
+
+        Run(NewRecorder());
+        await SentAsync(1);
+        await _clock.WaitForTimersAsync(1);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await SentAsync(2);
+
+        Assert.Equal("Grabación «salida-1» terminada sin fotos: la cámara no las daba. Mira el registro.", _telegram.Sent[1].Text);
+    }
+
+    [Fact]
+    public async Task Stop_cuts_the_recording_and_answers_with_what_it_kept()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _telegram.Returns(Messages((Owner, "/grabar 2 salida-1"), (Owner, "/grabar parar"), (Owner, "/grabar parar")));
+        var recorder = NewRecorder();
+
+        Run(recorder);
+        await SentAsync(3);
+
+        Assert.StartsWith("Grabación «salida-1» ", _telegram.Sent[1].Text);
+        Assert.Equal(BotTexts.NotRecording, _telegram.Sent[2].Text);
+        Assert.Null(recorder.Current);
+        Assert.Contains(_log.Lines, l => l.Message == "telegram: answered /grabar parar");
+    }
+
+    [Fact]
+    public async Task Record_alone_or_wrong_explains_itself_even_without_a_recorder()
+    {
+        _memory.LastDailyHeartbeat = NineToday;
+        _telegram.Returns(Messages((Owner, "/grabar"), (Owner, "/grabar 13h"), (Owner, "/grabar 2")));
+
+        Run();
+        await SentAsync(3);
+
+        Assert.Equal(
+            [BotTexts.RecordingUsage, BotTexts.RecordingProblem(RecordingProblem.TooLong), BotTexts.RecordingUnavailable],
+            _telegram.Sent.Select(s => s.Text));
+    }
+
+    private Recorder NewRecorder()
+    {
+        var recorder = new Recorder(_recordings, _clock, _log, () => 4_800_000_000);
+        _disposeRecorder = recorder;
+        return recorder;
+    }
+
+    private void Run(Recorder? recorder = null)
+    {
+        var runner = new BotRunner(_telegram, Owner, _environment, _memory, _clock, _log, recorder: recorder);
         _run = runner.RunAsync(_stop.Token);
     }
 

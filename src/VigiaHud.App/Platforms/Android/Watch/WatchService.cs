@@ -7,6 +7,7 @@ using VigiaHud.App.Platforms.Android.Bot;
 using VigiaHud.Core.Bot;
 using VigiaHud.Core.Device;
 using VigiaHud.Core.Logging;
+using VigiaHud.Core.Recording;
 using VigiaHud.Core.Telegram;
 using VigiaHud.Core.Watch;
 
@@ -29,6 +30,9 @@ public sealed class WatchService : Service
     private const int NotificationId = 1;
     private const string ChannelId = "watch";
     private const int MaxSnapshots = 200;
+
+    /// <summary>Under the app's files, where <c>scripts/pull-recordings.ps1</c> looks for them.</summary>
+    public const string RecordingsDirectory = "recordings";
 
     /// <summary>Long enough to outlast a missed minute or two, short enough that a forgotten lock dies on its own.</summary>
     private static readonly TimeSpan WakeLockHold = TimeSpan.FromMinutes(15);
@@ -56,6 +60,7 @@ public sealed class WatchService : Service
     private WatchReporter? _reporter;
     private SnapshotStore? _snapshots;
     private CameraCapturer? _camera;
+    private Recorder? _recorder;
     private Java.Lang.Runnable? _tick;
     private DateTimeOffset _startedAt;
     private readonly object _frameGate = new();
@@ -191,7 +196,9 @@ public sealed class WatchService : Service
         _startedAt = now;
         _reporter = new WatchReporter(_timings!, now);
         _snapshots = new SnapshotStore(Path.Combine(FilesDir!.AbsolutePath, "snapshots"), MaxSnapshots);
-        _camera = new CameraCapturer(this, _log, OnFrame, OnFrameFailed);
+        // Private storage, never the gallery: no cloud backup picks the recordings up (DECISIONS 024).
+        _recorder = new Recorder(Path.Combine(FilesDir!.AbsolutePath, RecordingsDirectory), _clock, _log, FreeBytes);
+        _camera = new CameraCapturer(this, _log, OnFrame, OnFrameFailed, _recorder);
         _camera.Open();
 
         // The clock of the watch: one capture request per interval, on the main thread, while the wake lock keeps it ticking.
@@ -217,7 +224,22 @@ public sealed class WatchService : Service
 
         _camera?.Dispose();
         _camera = null;
+        _recorder?.Dispose();
+        _recorder = null;
         _reporter = null;
+    }
+
+    /// <summary>Space left where the recordings go; null if Android cannot say.</summary>
+    private long? FreeBytes()
+    {
+        try
+        {
+            return new StatFs(FilesDir!.AbsolutePath).AvailableBytes;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private void OnFrame(byte[] jpeg) => _main.Post(() =>
@@ -291,7 +313,7 @@ public sealed class WatchService : Service
 
         var environment = new AndroidBotEnvironment(_device, () => _clock!.GetUtcNow() - _startedAt, TakePhotoAsync);
         var client = new TelegramClient(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }, secrets.Token);
-        var runner = new BotRunner(client, secrets.ChatId, environment, new PreferencesBotMemory(), _clock!, _log!);
+        var runner = new BotRunner(client, secrets.ChatId, environment, new PreferencesBotMemory(), _clock!, _log!, recorder: _recorder);
         var log = _log!;
         _network = new NetworkWatcher(this, () =>
         {

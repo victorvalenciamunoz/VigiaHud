@@ -12,6 +12,9 @@ public enum BotCommand
     /// <summary><c>/ayuda</c> (and <c>/start</c>, which Telegram sends when the chat is opened): the list of commands.</summary>
     Help,
 
+    /// <summary><c>/grabar</c>: record a test scene for the phase 3 judge, or stop one (DECISIONS 024).</summary>
+    Record,
+
     /// <summary>Any other text: answered with a short pointer to the help.</summary>
     Unknown,
 }

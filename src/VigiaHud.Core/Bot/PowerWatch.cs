@@ -39,8 +39,11 @@ public sealed class PowerWatch
     public static readonly TimeSpan NoticeAfter = TimeSpan.FromMinutes(10);
     public const int LowBatteryPercent = 15;
 
-    /// <summary>Battery used per hour with the camera always on, measured on the OPPO (DECISIONS 014).</summary>
-    public const double BatteryPercentPerHour = 9;
+    /// <summary>
+    /// Battery used per hour with the camera always on, measured on the OPPO unplugged overnight on 2026-11-03 with the
+    /// phase 2 build (DECISIONS 024); phase 1 used 9 (DECISIONS 014), before the frame conversion got cheaper.
+    /// </summary>
+    public const double BatteryPercentPerHour = 5.3;
 
     private readonly List<PowerCut> _cuts = [];
     private DateTimeOffset? _unpluggedSince;
