@@ -40,6 +40,5 @@ persona hay que quedarse fuera de la imagen (si se sale, se etiqueta).
 
 | Grabación | Inicio (UTC) | Duración | Fotos | Etiquetas | Tamaño | SHA-256 |
 |---|---|---|---|---|---|---|
-| 20261104-112159Z-persona-cruza | 2026-11-04 11:21 | 01:00 | 60 | sin etiquetar | 1,4 MB | `6223d2a6cd88eb2d43452e83860c144c834dcbf7386f32f39d6bf8ddbdd16ed4` |
-
-`prueba-1` (la primera prueba del paso 1) se borró: estaba grabada con otro fondo y no sirve para el lote.
+Todavía ninguna. Las primeras pruebas (`prueba-1`, `persona-cruza`, `vacia-1`) se borraron para empezar el lote 1 de
+cero, con el móvil ya fijo en su sitio.
