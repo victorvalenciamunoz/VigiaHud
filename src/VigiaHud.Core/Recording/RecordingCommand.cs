@@ -20,7 +20,7 @@ public abstract partial record RecordingCommand
 {
     public static readonly TimeSpan MinDuration = TimeSpan.FromSeconds(10);
 
-    /// <summary>One night with nobody home; at about 110 MB an hour, longer would not fit the phone's free space.</summary>
+    /// <summary>One night with nobody home: about 1.1 GB at the 89 MB an hour measured on the OPPO (2026-11-04).</summary>
     public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(12);
 
     public const int MaxNameLength = 40;

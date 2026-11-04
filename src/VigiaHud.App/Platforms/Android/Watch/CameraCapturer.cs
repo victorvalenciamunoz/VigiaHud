@@ -7,6 +7,7 @@ using Android.OS;
 using Android.Views;
 using Java.Lang;
 using VigiaHud.Core.Logging;
+using VigiaHud.Core.Recording;
 using Exception = System.Exception;
 using Image = Android.Media.Image;
 using Size = Android.Util.Size;
@@ -35,6 +36,7 @@ public sealed class CameraCapturer : IDisposable
     private readonly IWatchLog _log;
     private readonly Action<byte[]> _onFrame;
     private readonly Action<string> _onFailure;
+    private readonly Recorder? _recorder;
     private readonly HandlerThread _thread;
     private readonly Handler _handler;
     private readonly CameraManager _manager;
@@ -58,12 +60,14 @@ public sealed class CameraCapturer : IDisposable
     private bool _lost;
     private bool _disposed;
 
-    public CameraCapturer(Context context, IWatchLog log, Action<byte[]> onFrame, Action<string> onFailure)
+    /// <param name="recorder">Test recordings (DECISIONS 024): offered every streamed frame, it keeps one a second while recording.</param>
+    public CameraCapturer(Context context, IWatchLog log, Action<byte[]> onFrame, Action<string> onFailure, Recorder? recorder = null)
     {
         _context = context;
         _log = log;
         _onFrame = onFrame;
         _onFailure = onFailure;
+        _recorder = recorder;
         _thread = new HandlerThread("VigiaHud.Camera");
         _thread.Start();
         _handler = new Handler(_thread.Looper!);
@@ -299,13 +303,31 @@ public sealed class CameraCapturer : IDisposable
         try
         {
             image = reader.AcquireLatestImage();
-            if (image is null || !_grabNext)
+            if (image is null)
             {
                 return;
             }
 
-            _grabNext = false;
-            _onFrame(ToJpeg(image));
+            // Asked every frame (15 a second), but it only says yes once a second while a test recording runs.
+            var record = _recorder?.WantsFrame() == true;
+            if (!_grabNext && !record)
+            {
+                return;
+            }
+
+            // One copy and one JPEG serve both the watch and the recording.
+            var frame = Planes.Copy(image);
+            var jpeg = ToJpeg(frame);
+            if (record)
+            {
+                _recorder!.Write(frame.Y, frame.Width, frame.Height, frame.YRowStride, SensorOrientation, jpeg);
+            }
+
+            if (_grabNext)
+            {
+                _grabNext = false;
+                _onFrame(jpeg);
+            }
         }
         catch (Exception error)
         {
@@ -320,43 +342,28 @@ public sealed class CameraCapturer : IDisposable
         }
     }
 
-    private static byte[] ToJpeg(Image image)
+    private static byte[] ToJpeg(Planes frame)
     {
-        var width = image.Width;
-        var height = image.Height;
-        var nv21 = ToNv21(image, width, height);
-        using var yuv = new YuvImage(nv21, ImageFormatType.Nv21, width, height, null);
+        var nv21 = ToNv21(frame);
+        using var yuv = new YuvImage(nv21, ImageFormatType.Nv21, frame.Width, frame.Height, null);
         using var output = new MemoryStream();
-        yuv.CompressToJpeg(new Rect(0, 0, width, height), JpegQuality, output);
+        yuv.CompressToJpeg(new Rect(0, 0, frame.Width, frame.Height), JpegQuality, output);
         return output.ToArray();
     }
 
     /// <summary>
-    /// YUV_420_888 (planar or semi-planar, any strides) to NV21, the one layout <see cref="YuvImage"/> accepts. Each
-    /// plane crosses from Java once, in one copy, and is then read in managed memory: reading it pixel by pixel through
-    /// the buffer cost about 38 000 calls into Java per frame and 41 % of a core on the OPPO (2026-11-03, DECISIONS 021).
+    /// YUV_420_888 (planar or semi-planar, any strides) to NV21, the one layout <see cref="YuvImage"/> accepts, read
+    /// from the planes already copied out of Java.
     /// </summary>
-    private static byte[] ToNv21(Image image, int width, int height)
+    private static byte[] ToNv21(Planes frame)
     {
-        var planes = image.GetPlanes()!;
+        var (width, height) = (frame.Width, frame.Height);
         var nv21 = new byte[width * height * 3 / 2];
-
-        var y = planes[0];
-        var yBytes = Copy(y.Buffer!);
-        var yRowStride = y.RowStride;
         for (var row = 0; row < height; row++)
         {
-            Buffer.BlockCopy(yBytes, row * yRowStride, nv21, row * width, width);
+            Buffer.BlockCopy(frame.Y, row * frame.YRowStride, nv21, row * width, width);
         }
 
-        var u = planes[1];
-        var v = planes[2];
-        var uBytes = Copy(u.Buffer!);
-        var vBytes = Copy(v.Buffer!);
-        var uRowStride = u.RowStride;
-        var vRowStride = v.RowStride;
-        var uPixelStride = u.PixelStride;
-        var vPixelStride = v.PixelStride;
         var chromaHeight = height / 2;
         var chromaWidth = width / 2;
         var offset = width * height;
@@ -364,12 +371,35 @@ public sealed class CameraCapturer : IDisposable
         {
             for (var col = 0; col < chromaWidth; col++)
             {
-                nv21[offset++] = vBytes[row * vRowStride + col * vPixelStride];
-                nv21[offset++] = uBytes[row * uRowStride + col * uPixelStride];
+                nv21[offset++] = frame.V[row * frame.VRowStride + col * frame.VPixelStride];
+                nv21[offset++] = frame.U[row * frame.URowStride + col * frame.UPixelStride];
             }
         }
 
         return nv21;
+    }
+
+    /// <summary>
+    /// The three planes of a frame copied into managed memory, each crossing from Java once in one copy: reading them
+    /// pixel by pixel through the buffer cost about 38 000 calls into Java per frame and 41 % of a core on the OPPO
+    /// (2026-11-03, DECISIONS 021). The Y plane is kept with its row stride, as the recorder reads it.
+    /// </summary>
+    private sealed record Planes(
+        int Width, int Height,
+        byte[] Y, int YRowStride,
+        byte[] U, int URowStride, int UPixelStride,
+        byte[] V, int VRowStride, int VPixelStride)
+    {
+        public static Planes Copy(Image image)
+        {
+            var planes = image.GetPlanes()!;
+            var (y, u, v) = (planes[0], planes[1], planes[2]);
+            return new Planes(
+                image.Width, image.Height,
+                CameraCapturer.Copy(y.Buffer!), y.RowStride,
+                CameraCapturer.Copy(u.Buffer!), u.RowStride, u.PixelStride,
+                CameraCapturer.Copy(v.Buffer!), v.RowStride, v.PixelStride);
+        }
     }
 
     /// <summary>The whole remaining buffer in one call into Java.</summary>

@@ -29,14 +29,20 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   una foto por segundo. Te aviso al terminar."), si ya hay otra en marcha, si falta espacio y si se corta. El reloj de
   `BotRunner` avisa cuando termina sola, con las fotos y el tamaño. `/ayuda` la incluye. Sin grabador, `/grabar` dice
   que ahora no puede grabar.
+- En el móvil (paso 1.2): `WatchService` crea el `Recorder` en `files/recordings` (almacenamiento privado, con el
+  espacio libre leído con `StatFs`) y se lo pasa al bot y a `CameraCapturer`. La cámara le pregunta en cada fotograma
+  si toca grabar; si toca, una sola copia de los planos y un solo JPEG sirven a la vigilancia y a la grabación.
+- `scripts/pull-recordings.ps1` trae las grabaciones a `%USERPROFILE%\.vigiahud\secuencias\` byte a byte
+  (`adb exec-out`), comprueba tamaño y SHA-256 contra el móvil y solo entonces las borra de allí (`-Keep` las deja).
+  Deja en el móvil la que aún se está escribiendo y se niega a copiar dentro del repo.
 
 ### Qué falta
 
-- [ ] Paso 1 — Grabar secuencias en el móvil y traerlas al PC:
+- [x] Paso 1 — Grabar secuencias en el móvil y traerlas al PC (2026-11-04):
   - [x] 1.1 En Core: imagen gris pequeña, formato de las grabaciones, `/grabar` y el grabador; margen de batería al
-    5,3 %/h (2026-11-04).
-  - [ ] 1.2 En el móvil: el grabador en el servicio de vigilancia, el script que trae las grabaciones al PC
-    (`%USERPROFILE%\.vigiahud\secuencias\`) y la prueba de 1 min con su tamaño y su CPU.
+    5,3 %/h.
+  - [x] 1.2 En el móvil: el grabador en el servicio de vigilancia, el script que trae las grabaciones al PC y la
+    prueba de 1 min con su tamaño y su CPU.
 - [ ] Paso 2 — Consola con `info` y `hoja`; el autor graba y etiqueta el primer lote.
 - [ ] Paso 3 — Detector y juez en el PC (`juzgar`, `barrer`); primera tabla y elección de umbrales.
 - [ ] Paso 4 — Detector en el móvil: solo registro, foto guardada y recuento en el latido. CPU y batería antes y
@@ -60,6 +66,12 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   - `BotRunnerTests`: empezar, terminar sola avisada por el reloj, `parar` dos veces, y uso, error y falta de grabador.
     Además, textos (`BotTextsTests`) y el margen a 5,3 %/h (`PowerWatchTests`).
   - `dotnet build` de la solución con 0 avisos (app incluida); `dotnet test` 318 tests, cinco pasadas seguidas.
+- Paso 1.2 en el OPPO (`verificacion/2026-11-04-fase3-paso1-grabacion.md`): el autor mandó `/grabar 1 prueba-1`;
+  `record: finished prueba-1: 60 frames, 1489025 bytes, completed` y la vigilancia siguió con `frames=30 failed=0`.
+  El script la trajo con la misma huella que en el móvil y la borró de allí. Leída con `SequenceReader`: 60
+  fotogramas enteros, uno por segundo (de 0,89 a 1,12 s), 14,3 KB de imagen gris y 9,9 KB de JPEG por fotograma:
+  **89 MB por hora**, unos 1,1 GB por noche de 12 h. CPU de la app: 21-23 % de un núcleo con la versión anterior,
+  17-24 % con la nueva sin grabar y 26-27 % grabando; la cámara del sistema no cambia.
 
 ## Por ver de las fases cerradas
 

@@ -401,6 +401,8 @@ Formato: contexto → decisión → alternativas descartadas.
     se pierde como mucho el último fotograma. Sin paquetes: `System.IO.Compression` y `System.Text.Json`.
   - En el móvil van en la carpeta privada de la app (`files/recordings`), no en la galería, para que ninguna nube las
     suba. De 10 s a 12 h; una a la vez; se para sola con menos de 1,5 GB libres (había 4,8 GB, DECISIONS 003).
+  - Medido en el OPPO (2026-11-04): 89 MB por hora (14,3 KB de imagen gris y 9,9 KB de JPEG por fotograma), unos
+    1,1 GB por noche; la app sube unos 4 puntos de CPU mientras graba y nada cuando no graba.
 - Alternativas: dentro del repo excluidas por `.gitignore` (un `git add` despistado las publicaría) o en un repo
   privado de GitHub (servidor ajeno y cupo de ficheros grandes); grabar desde el PC por `adb` (exige el PC al lado);
   avisar del movimiento ya por Telegram (avisaría del dueño y de luces y sombras hasta la fase 5); grabar el vídeo
