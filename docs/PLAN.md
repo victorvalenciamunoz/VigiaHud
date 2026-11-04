@@ -1,6 +1,6 @@
 # Plan
 
-**Fase actual: 2** (la fase 1 se cerró el 2026-11-03; su historia está en `docs/historia.md`)
+**Fase actual: 3** (las fases 1 y 2 se cerraron el 2026-11-03 y el 2026-11-04; su historia está en `docs/historia.md`)
 
 ---
 
