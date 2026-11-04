@@ -35,6 +35,19 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
 - `scripts/pull-recordings.ps1` trae las grabaciones a `%USERPROFILE%\.vigiahud\secuencias\` byte a byte
   (`adb exec-out`), comprueba tamaño y SHA-256 contra el móvil y solo entonces las borra de allí (`-Keep` las deja).
   Deja en el móvil la que aún se está escribiendo y se niega a copiar dentro del repo.
+- Etiquetas (DECISIONS 025): `SequenceLabels` lee el `.txt` que va junto a cada grabación (`persona 00:12-00:31` por
+  tramo con alguien, `#` para comentarios; sin fichero, sin etiquetar; sin líneas `persona`, sin nadie) y dice en qué
+  línea está el error. `PersonInterval.Contains` cuenta enteros el primer y el último segundo del tramo.
+  `SequenceSummary` resume una grabación: fotos, duración, hueco máximo, si está cortada, tamaño y SHA-256.
+- `VigiaHud.Console` (`dotnet run --project src/VigiaHud.Console -- <comando>`), con las grabaciones por defecto en
+  `%USERPROFILE%\.vigiahud\secuencias\`:
+  - `info`: la tabla Markdown de `docs/secuencias.md`, con las grabaciones dañadas o las etiquetas mal escritas
+    señaladas (y código de salida 1).
+  - `hoja <grabación>`: una página junto a la grabación, con las fotos dentro, para mirarlas y etiquetarlas tocando
+    cada foto con alguien (con Mayúsculas, todas desde el toque anterior); las marcadas seguidas son un tramo y COPIAR
+    da las líneas del `.txt`. Lo ya etiquetado que la hoja no enseña se conserva. Como mucho 600 fotos repartidas;
+    `--desde`, `--hasta` y `--cada N` para un rato concreto. Cuenta como persona cualquier parte del cuerpo.
+- `docs/secuencias.md`: cómo se graba y se etiqueta, las escenas del lote 1 y la lista de grabaciones.
 
 ### Qué falta
 
@@ -43,7 +56,9 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
     5,3 %/h.
   - [x] 1.2 En el móvil: el grabador en el servicio de vigilancia, el script que trae las grabaciones al PC y la
     prueba de 1 min con su tamaño y su CPU.
-- [ ] Paso 2 — Consola con `info` y `hoja`; el autor graba y etiqueta el primer lote.
+- [ ] Paso 2 — Mirar y etiquetar las grabaciones:
+  - [x] La consola con `info` y `hoja`, y el formato de las etiquetas (2026-11-04).
+  - [ ] El autor graba y etiqueta el lote 1 (`docs/secuencias.md`).
 - [ ] Paso 3 — Detector y juez en el PC (`juzgar`, `barrer`); primera tabla y elección de umbrales.
 - [ ] Paso 4 — Detector en el móvil: solo registro, foto guardada y recuento en el latido. CPU y batería antes y
   después (como mucho 5,8 %/h y la app por debajo del 25 % de un núcleo).
@@ -72,6 +87,17 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   fotogramas enteros, uno por segundo (de 0,89 a 1,12 s), 14,3 KB de imagen gris y 9,9 KB de JPEG por fotograma:
   **89 MB por hora**, unos 1,1 GB por noche de 12 h. CPU de la app: 21-23 % de un núcleo con la versión anterior,
   17-24 % con la nueva sin grabar y 26-27 % grabando; la cámara del sistema no cambia.
+- Paso 2: 32 tests nuevos (`SequenceLabelsTests`: orden y comentarios, sin nadie, minutos y horas, retorno de carro
+  de Windows, cada error con su línea, los extremos de un tramo, ida y vuelta de las horas; `SequenceSummaryTests`:
+  fotos, duración, hueco, fichero cortado y huella). Con la grabación real `prueba-1`: `info` saca su fila y `hoja` su
+  página, entera (60 fotos) y de un rato (`--desde 00:20 --hasta 00:29`, 10 fotos); los errores de uso dan un mensaje
+  claro. El JavaScript de la página pasa `node --check`. El autor abrió la página en su navegador: fotos derechas,
+  marcar, quitar y COPIAR bien. Al etiquetar `persona-cruza` tocó foto a foto y dejó fuera dos fotos en las que se le
+  veía; la hoja pasó a marcar una foto por toque. Con un DOM simulado y sus etiquetas: tocar 00:21 y 00:22 junta
+  `00:19-00:20` y `00:23-00:24` en `00:19-00:24`; desmarcar una foto parte el tramo; Mayúsculas marca todo el rato; y
+  una hoja de un rato o de una foto cada 10 s conserva lo que no enseña. Las
+  páginas no se miraron desde aquí: llevan las fotos de la casa. `dotnet build` de la solución con 0 avisos;
+  `dotnet test` 350 tests, cinco pasadas seguidas.
 
 ## Por ver de las fases cerradas
 

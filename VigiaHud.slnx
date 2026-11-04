@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/VigiaHud.App/VigiaHud.App.csproj" />
+    <Project Path="src/VigiaHud.Console/VigiaHud.Console.csproj" />
     <Project Path="src/VigiaHud.Core/VigiaHud.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
