@@ -15,6 +15,9 @@ public class CommandParserTests
     [InlineData("/estado@VigiaHudBot ahora", BotCommand.Status)]
     [InlineData("/foto por favor", BotCommand.Photo)]
     [InlineData("/foto\nsegunda línea", BotCommand.Photo)]
+    [InlineData("/grabar", BotCommand.Record)]
+    [InlineData("/grabar 2 salida-1", BotCommand.Record)]
+    [InlineData("/Grabar@VigiaHudBot parar", BotCommand.Record)]
     public void Reads_the_command_as_telegram_clients_send_it(string text, BotCommand expected) =>
         Assert.Equal(expected, CommandParser.Parse(text));
 

@@ -372,3 +372,37 @@ Formato: contexto → decisión → alternativas descartadas.
 - Alternativas: enumerar los tipos de error de cada plataforma (descartado: el siguiente que no estuviera en la lista
   volvería a tratarse como inesperado); bajar el máximo de espera de 5 min (descartado: más intentos inútiles durante
   cortes largos sin resolver el caso del wifi que vuelve).
+
+## 024 — Plan de la fase 3 y grabaciones de prueba
+- Contexto: la fase 3 pide detectar movimiento en el móvil y juzgarlo contra grabaciones etiquetadas, con una tabla
+  de falsas alarmas y detecciones perdidas. Las grabaciones son el interior de una casa y el repo es público. La
+  vigilancia gasta 5,3 % de batería por hora y la cámara del sistema casi un núcleo (DECISIONS 021); la cámara da 15
+  fotogramas por segundo a 320×240 (su mínimo) y la vigilancia usa uno cada 2 s.
+- Decisiones del autor (2026-11-04):
+  - **Seis pasos**: 1 grabar y traer grabaciones; 2 consola para mirarlas y etiquetarlas (`info`, `hoja`); 3 detector
+    y juez en el PC (`juzgar`, `barrer`), sin tocar el móvil; 4 detector en el móvil; 5 editor de máscaras; 6 juez
+    final con un lote grabado después de fijar los umbrales, para no juzgar con lo mismo con que se ajusta.
+  - Las grabaciones viven **fuera del repo**, en `%USERPROFILE%\.vigiahud\secuencias\`; en el repo solo una lista con
+    nombres neutros, etiquetas y la huella (SHA-256) de cada fichero.
+  - Se graban con **`/grabar` desde Telegram**, solo para fabricar escenas de prueba: la vigilancia nunca graba.
+  - En esta fase, al detectar movimiento, **solo registro, foto guardada en el móvil y recuento en el latido**; el
+    aviso por Telegram llega en la fase 4, cuando se confirme que es una persona (PLAN.md).
+  - El **lote 1** (ajuste) se graba donde está ahora el móvil; el **lote del juez**, en la segunda residencia.
+  - Criterio del paso 4: como mucho **5,8 % de batería por hora** y la app por debajo del **25 % de un núcleo**.
+  - El margen de los avisos de batería pasa del 9 % al **5,3 % por hora** medido en la fase 2 (DECISIONS 020); se
+    revisa con la medida del paso 4.
+  - El dibujo del editor de máscaras se confirma al llegar al paso 5. Para la fase 5 queda la idea de guardar unos
+    segundos alrededor de cada detección, para añadir las falsas alarmas reales a las pruebas.
+- Decisiones técnicas:
+  - Una grabación guarda **un fotograma por segundo** (la consola puede probar también uno cada 2 s): la imagen gris
+    a 160×120 (media de bloques de 2×2 del plano Y), exactamente la que verá el detector, comprimida sin pérdida
+    (Deflate), y el JPEG en color de 320×240 de ese momento, para etiquetar y para la fase 4. Un fichero `.vseq` por
+    grabación: cabecera JSON y un registro por fotograma escrito entero y a disco, de modo que si Android mata la app
+    se pierde como mucho el último fotograma. Sin paquetes: `System.IO.Compression` y `System.Text.Json`.
+  - En el móvil van en la carpeta privada de la app (`files/recordings`), no en la galería, para que ninguna nube las
+    suba. De 10 s a 12 h; una a la vez; se para sola con menos de 1,5 GB libres (había 4,8 GB, DECISIONS 003).
+- Alternativas: dentro del repo excluidas por `.gitignore` (un `git add` despistado las publicaría) o en un repo
+  privado de GitHub (servidor ajeno y cupo de ficheros grandes); grabar desde el PC por `adb` (exige el PC al lado);
+  avisar del movimiento ya por Telegram (avisaría del dueño y de luces y sombras hasta la fase 5); grabar el vídeo
+  normal de la cámara (cambia los píxeles y no deja grabar mientras se vigila); guardar el fotograma entero en color
+  sin pérdida (unos 3 GB por noche, más de lo que cabe).

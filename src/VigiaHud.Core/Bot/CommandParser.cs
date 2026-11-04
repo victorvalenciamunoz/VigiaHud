@@ -13,6 +13,7 @@ public static class CommandParser
         ["/estado"] = BotCommand.Status,
         ["/ayuda"] = BotCommand.Help,
         ["/start"] = BotCommand.Help,
+        ["/grabar"] = BotCommand.Record,
     };
 
     /// <summary>The command in <paramref name="text"/>; <see cref="BotCommand.Unknown"/> for any other text, null for no text.</summary>

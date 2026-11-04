@@ -35,6 +35,7 @@ public sealed class BotBrain
             BotCommand.Photo => new BotDecision.SendPhoto(),
             BotCommand.Status => new BotDecision.SendStatus(),
             BotCommand.Help => new BotDecision.Reply(BotTexts.Help),
+            BotCommand.Record => new BotDecision.Record(Recording.RecordingCommand.Parse(message.Text!)),
             _ => new BotDecision.Reply(BotTexts.Unknown),
         };
     }

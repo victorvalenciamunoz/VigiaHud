@@ -18,4 +18,7 @@ public abstract record BotDecision
 
     /// <summary>Answer with the status text, built from the device at the moment of answering.</summary>
     public sealed record SendStatus : BotDecision;
+
+    /// <summary>Start or stop a test recording, or explain <c>/grabar</c>.</summary>
+    public sealed record Record(Recording.RecordingCommand Command) : BotDecision;
 }

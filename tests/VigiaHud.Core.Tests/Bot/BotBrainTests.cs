@@ -67,5 +67,17 @@ public class BotBrainTests
         Assert.IsType<BotDecision.SendPhoto>(brain.Decide(Message(-100_123, "/foto")));
     }
 
+    [Theory]
+    [InlineData("/grabar 2 salida-1")]
+    [InlineData("/grabar parar")]
+    [InlineData("/grabar")]
+    [InlineData("/grabar mal")]
+    public void Record_from_the_owner_carries_what_was_asked(string text) =>
+        Assert.Equal(new BotDecision.Record(Core.Recording.RecordingCommand.Parse(text)), _brain.Decide(Message(Owner, text)));
+
+    [Fact]
+    public void Record_from_a_stranger_is_ignored() =>
+        Assert.IsType<BotDecision.Ignore>(_brain.Decide(Message(Stranger, "/grabar 8h")));
+
     private static IncomingMessage Message(long chat, string? text) => new(1, chat, text, At);
 }

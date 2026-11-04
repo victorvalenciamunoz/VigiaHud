@@ -97,14 +97,14 @@ public class PowerWatchTests
     }
 
     [Theory]
-    [InlineData(100, 11)]
-    [InlineData(84, 9)]
-    [InlineData(15, 2)]
-    [InlineData(9, 1)]
-    [InlineData(4, 0)]
+    [InlineData(100, 19)]
+    [InlineData(84, 16)]
+    [InlineData(15, 3)]
+    [InlineData(5, 1)]
+    [InlineData(2, 0)]
     [InlineData(0, 0)]
     [InlineData(-3, 0)]
-    public void Hours_left_follow_the_measured_nine_percent_an_hour(int percent, int hours) =>
+    public void Hours_left_follow_the_measured_five_point_three_percent_an_hour(int percent, int hours) =>
         Assert.Equal(hours, PowerWatch.HoursLeft(percent));
 
     private static DeviceStatus Plugged(int percent, bool? doze = true) => new(percent, true, 25, doze);

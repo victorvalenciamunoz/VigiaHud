@@ -16,6 +16,7 @@ public static class BotTexts
         "/foto: una foto de ahora.\n" +
         "/estado: batería, cargador, temperatura y tiempo vigilando.\n" +
         "/ayuda: esta lista.\n" +
+        "/grabar: graba una escena de prueba para ajustar el detector.\n" +
         "Cada mañana te escribo para decirte que sigo vivo. Si un día no llega, algo falla.";
 
     public const string Unknown = "No te entiendo. Escribe /ayuda para ver lo que sé hacer.";
@@ -147,6 +148,89 @@ public static class BotTexts
         ArgumentNullException.ThrowIfNull(zone);
         return $"Vuelvo a tener conexión. Estuve {Duration(outage.Duration)} sin poder hablar con Telegram, desde {Moment(outage.Start, outage.End, zone)}.";
     }
+
+    public const string RecordingUsage =
+        "Para grabar una escena de prueba: /grabar 2 salida-1 (2 minutos, con ese nombre) o /grabar 8h casa-vacia. " +
+        "Para cortarla: /grabar parar. La vigilancia sigue mientras grabo.";
+
+    public const string NotRecording = "No estoy grabando nada.";
+
+    public const string RecordingUnavailable = "Ahora no puedo grabar: la vigilancia no está en marcha.";
+
+    public static string RecordingProblem(Recording.RecordingProblem problem) => problem switch
+    {
+        Recording.RecordingProblem.BadDuration => "No entiendo la duración. Ejemplos: /grabar 2 (minutos), /grabar 90s, /grabar 8h.",
+        Recording.RecordingProblem.TooShort => "Muy corta: graba al menos 10 s.",
+        Recording.RecordingProblem.TooLong => "Muy larga: como mucho 12 h.",
+        Recording.RecordingProblem.BadName => "El nombre va en una palabra, con letras sin tilde, números y guiones, hasta 40: salida-1.",
+        _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, null),
+    };
+
+    /// <summary>"Grabo «salida-1» durante 2 min, una foto por segundo. Te aviso al terminar."</summary>
+    public static string RecordingStarted(Recording.RecordingState recording)
+    {
+        ArgumentNullException.ThrowIfNull(recording);
+        return $"Grabo «{recording.Name}» durante {Length(recording.Duration)}, una foto por segundo. Te aviso al terminar.";
+    }
+
+    public static string RecordingBusy(Recording.RecordingState recording, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(recording);
+        var left = recording.EndsAt - now;
+        return $"Ya estoy grabando «{recording.Name}»: quedan {Length(TimeSpan.FromSeconds(Math.Ceiling(Math.Max(left.TotalSeconds, 0))))}. Para cortarla: /grabar parar.";
+    }
+
+    public static string RecordingNoSpace(long freeBytes) =>
+        $"No grabo: quedan {Size(freeBytes)} libres en el móvil y tengo que dejar al menos {Size(Recording.Recorder.MinFreeBytes)}.";
+
+    /// <summary>How a recording ended, with its frames and size, so the owner knows the scene can end.</summary>
+    public static string RecordingFinished(Recording.RecordingState recording)
+    {
+        ArgumentNullException.ThrowIfNull(recording);
+        if (recording.Frames == 0)
+        {
+            return $"Grabación «{recording.Name}» terminada sin fotos: la cámara no las daba. Mira el registro.";
+        }
+
+        var photos = recording.Frames == 1 ? "1 foto" : string.Create(Spanish, $"{recording.Frames} fotos");
+        var what = $"{photos}, {Size(recording.Bytes)}";
+        return recording.End switch
+        {
+            Recording.RecordingEnd.Stopped => $"Grabación «{recording.Name}» cortada: {what}.",
+            Recording.RecordingEnd.LowSpace => $"Grabación «{recording.Name}» parada por falta de espacio: {what}. Hay que pasarla al PC.",
+            Recording.RecordingEnd.Failed => $"Grabación «{recording.Name}» parada por un error: {what}. Mira el registro.",
+            Recording.RecordingEnd.Interrupted => $"Grabación «{recording.Name}» interrumpida al parar la vigilancia: {what}.",
+            _ => $"Grabación «{recording.Name}» terminada: {what}.",
+        };
+    }
+
+    /// <summary>"45 s", "2 min", "1 min 30 s", "8 h", "1 h 30 min": exact, since the owner chose it.</summary>
+    private static string Length(TimeSpan span)
+    {
+        if (span < TimeSpan.FromMinutes(1))
+        {
+            return string.Create(Spanish, $"{(int)span.TotalSeconds} s");
+        }
+
+        if (span < TimeSpan.FromHours(1))
+        {
+            return span.Seconds == 0
+                ? string.Create(Spanish, $"{(int)span.TotalMinutes} min")
+                : string.Create(Spanish, $"{(int)span.TotalMinutes} min {span.Seconds} s");
+        }
+
+        return span.Minutes == 0
+            ? string.Create(Spanish, $"{(int)span.TotalHours} h")
+            : string.Create(Spanish, $"{(int)span.TotalHours} h {span.Minutes} min");
+    }
+
+    /// <summary>"350 KB", "3,5 MB", "1,4 GB" (decimal units, like the phone's settings).</summary>
+    private static string Size(long bytes) => bytes switch
+    {
+        < 1_000_000 => string.Create(Spanish, $"{Math.Max(bytes / 1000, 1)} KB"),
+        < 1_000_000_000 => string.Create(Spanish, $"{bytes / 1e6:0.0} MB"),
+        _ => string.Create(Spanish, $"{bytes / 1e9:0.0} GB"),
+    };
 
     /// <summary>The caption of a photo taken at <paramref name="takenAt"/>: just the local time.</summary>
     public static string PhotoCaption(DateTimeOffset takenAt, TimeZoneInfo zone)

@@ -1,4 +1,5 @@
 using VigiaHud.Core.Logging;
+using VigiaHud.Core.Recording;
 using VigiaHud.Core.Telegram;
 
 namespace VigiaHud.Core.Bot;
@@ -35,7 +36,9 @@ public sealed class BotRunner
     private readonly DailyHeartbeatSchedule _schedule;
     private readonly List<Outage> _outages = [];
     private readonly PowerWatch _power = new();
+    private readonly Recorder? _recorder;
 
+    /// <param name="recorder">Test recordings for <c>/grabar</c>; without one the bot says it cannot record.</param>
     public BotRunner(
         ITelegramClient client,
         long ownerChatId,
@@ -44,7 +47,8 @@ public sealed class BotRunner
         TimeProvider clock,
         IWatchLog log,
         TimeOnly? heartbeatAt = null,
-        TimeSpan? pollWait = null)
+        TimeSpan? pollWait = null,
+        Recorder? recorder = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(environment);
@@ -57,6 +61,7 @@ public sealed class BotRunner
         _memory = memory;
         _clock = clock;
         _log = log;
+        _recorder = recorder;
         _brain = new BotBrain(ownerChatId);
         _poller = new TelegramPoller(client, clock, log, pollWait);
         _schedule = new DailyHeartbeatSchedule(heartbeatAt ?? DefaultHeartbeatAt, environment.Zone);
@@ -114,6 +119,10 @@ public sealed class BotRunner
                 }
 
                 break;
+
+            case BotDecision.Record record:
+                await _client.SendMessageAsync(_owner, Record(record.Command), cancellationToken).ConfigureAwait(false);
+                break;
         }
 
         // Proof for the judge that the owner was answered; never the owner's own words, only what was asked.
@@ -128,8 +137,41 @@ public sealed class BotRunner
         BotDecision.SendStatus => "/estado",
         BotDecision.SendPhoto => "/foto",
         BotDecision.Reply { Text: BotTexts.Help } => "/ayuda",
+        BotDecision.Record { Command: RecordingCommand.Stop } => "/grabar parar",
+        BotDecision.Record => "/grabar",
         _ => "other text",
     };
+
+    /// <summary>Carries out a <c>/grabar</c> and says how it went.</summary>
+    private string Record(RecordingCommand command)
+    {
+        switch (command)
+        {
+            case RecordingCommand.Usage:
+                return BotTexts.RecordingUsage;
+            case RecordingCommand.Invalid invalid:
+                return BotTexts.RecordingProblem(invalid.Problem);
+        }
+
+        if (_recorder is null)
+        {
+            return BotTexts.RecordingUnavailable;
+        }
+
+        if (command is RecordingCommand.Stop)
+        {
+            return _recorder.Stop() is { } stopped ? BotTexts.RecordingFinished(stopped) : BotTexts.NotRecording;
+        }
+
+        var start = (RecordingCommand.Start)command;
+        return _recorder.Start(start.Duration, start.Name) switch
+        {
+            RecordingStart.Started started => BotTexts.RecordingStarted(started.Recording),
+            RecordingStart.Busy busy => BotTexts.RecordingBusy(busy.Recording, _clock.GetUtcNow()),
+            RecordingStart.NoSpace noSpace => BotTexts.RecordingNoSpace(noSpace.FreeBytes),
+            _ => throw new InvalidOperationException($"Unknown start {start.GetType().Name}"),
+        };
+    }
 
     private async Task ReconnectedAsync(Outage outage, CancellationToken cancellationToken)
     {
@@ -181,6 +223,17 @@ public sealed class BotRunner
                 else if (plan.SendAt - now < nap)
                 {
                     nap = plan.SendAt - now;
+                }
+
+                // A recording that ended on its own: the owner may be acting a scene and waiting to hear it is over.
+                foreach (var finished in _recorder?.TakeFinished() ?? [])
+                {
+                    Outbox.Enqueue(BotTexts.RecordingFinished(finished));
+                }
+
+                if (_recorder?.Current is { } recording && recording.EndsAt - now < nap)
+                {
+                    nap = recording.EndsAt - now;
                 }
 
                 if (Outbox.Count > 0)
