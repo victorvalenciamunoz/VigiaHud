@@ -1,4 +1,5 @@
 using VigiaHud.Core.Motion;
+using static VigiaHud.Core.Tests.Support.SyntheticFrames;
 
 namespace VigiaHud.Core.Tests.Motion;
 
@@ -8,9 +9,6 @@ namespace VigiaHud.Core.Tests.Motion;
 /// </summary>
 public class MotionDetectorTests
 {
-    private const int Width = 160;
-    private const int Height = 120;
-
     [Fact]
     public void The_first_frame_has_nothing_to_compare_with() =>
         Assert.Equal(MotionVerdict.First, new MotionDetector(MotionSettings.Default).Observe(Wall(seed: 1)).Verdict);
@@ -217,60 +215,5 @@ public class MotionDetectorTests
 
         Assert.Equal([false, false, true, true], mask.PixelsIgnored(4, 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new MotionMask(2, 1, [(2, 0)]));
-    }
-
-    /// <summary>A wall at <paramref name="level"/> with up to ±3 levels of grain, and a dark square if asked.</summary>
-    private static LumaImage Wall(int seed, int level = 100, (int X, int Y)? square = null)
-    {
-        var random = new Random(seed);
-        var pixels = new byte[Width * Height];
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            pixels[i] = (byte)(level + random.Next(-3, 4));
-        }
-
-        if (square is { } at)
-        {
-            for (var y = at.Y; y < at.Y + 20; y++)
-            {
-                for (var x = at.X; x < at.X + 20; x++)
-                {
-                    pixels[(y * Width) + x] = (byte)(level - 70);
-                }
-            }
-        }
-
-        return new LumaImage(Width, Height, pixels);
-    }
-
-    /// <summary>
-    /// A picture unlike the wall everywhere, as a frame gone wrong after a switch: each 2x2 block (one pixel once shrunk)
-    /// a random level, always the same ones. Checkers would not do: half of them would sit exactly one shift away.
-    /// </summary>
-    private static LumaImage Scrambled((int X, int Y)? square = null)
-    {
-        var random = new Random(42);
-        var levels = Enumerable.Range(0, (Width / 2) * (Height / 2)).Select(_ => (byte)random.Next(256)).ToArray();
-        var pixels = new byte[Width * Height];
-        for (var y = 0; y < Height; y++)
-        {
-            for (var x = 0; x < Width; x++)
-            {
-                pixels[(y * Width) + x] = levels[((y / 2) * (Width / 2)) + (x / 2)];
-            }
-        }
-
-        if (square is { } at)
-        {
-            for (var y = at.Y; y < at.Y + 20; y++)
-            {
-                for (var x = at.X; x < at.X + 20; x++)
-                {
-                    pixels[(y * Width) + x] = 125;
-                }
-            }
-        }
-
-        return new LumaImage(Width, Height, pixels);
     }
 }

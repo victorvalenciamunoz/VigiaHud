@@ -460,3 +460,23 @@ Formato: contexto → decisión → alternativas descartadas.
   otras y la mediana ya cubre el caso parejo; se valorará si `barrer` lo pide); un umbral proporcional al brillo para
   la poca luz (se probará en el paso 3.3 si las grabaciones oscuras lo piden); detectores de bordes o de flujo
   óptico (descartados: más cálculo en un móvil viejo para un problema que la fase 4 resolverá con un modelo).
+
+## 027 — El juez: avisos con cooldown, tramos con margen y falsas alarmas
+- Contexto: paso 3.2 de la fase 3. `PLAN.md` pide una tabla de falsas alarmas y detecciones perdidas. Hay que decidir
+  qué es un aviso, cuándo un tramo con persona está "detectado" y cuándo un aviso es "falso", de forma que el número
+  diga lo que el dueño viviría.
+- Decisión: `MotionJudge` en Core pasa cada grabación por `MotionDetector` como lo haría el móvil (una foto cada
+  `FrameStep`, y el detector empieza de nuevo tras un hueco de la cámara):
+  - **Aviso**: el primer movimiento tras `Cooldown` sin aviso. Un aviso por visita.
+  - **Tramo detectado**: hay movimiento desde `Lead` antes de él hasta `Trail` (2 s) después de su último segundo,
+    salga o no el aviso por el cooldown: el cooldown es para no saturar al dueño, no para ver. El adelanto de un tramo
+    no se mete en el margen del anterior, para que dos visitas seguidas no compartan el mismo movimiento.
+  - **Falsa alarma**: un aviso fuera de todos esos márgenes. Un movimiento falso dentro del cooldown de un aviso no
+    cuenta: el dueño no lo habría recibido.
+  - `juzgar` en la consola saca la tabla por grabación y el total, con las falsas alarmas por hora; las grabaciones
+    sin etiquetar se listan aparte y no cuentan.
+  - Valores provisionales del autor para la primera tabla (2026-11-07): **cooldown 2 min** y **adelanto 5 s** (la
+    sombra de quien va a entrar se vio 2-4 s antes en todas las escenas). Los definitivos, en el paso 3.3.
+- Alternativas: contar cada foto con movimiento (descartado: una persona que cruza daría diez "detecciones" y el número
+  no diría nada al dueño); que el cooldown cuente como perdida la segunda visita (descartado: mediría el cooldown, no
+  el detector); sin margen de adelanto (descartado: contaría como falsa alarma la sombra de quien sí entra).

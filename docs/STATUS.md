@@ -53,6 +53,10 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   anterior o con un fondo que aprende despacio, descuenta la mediana del cambio de brillo, cuenta los píxeles que
   pasan el umbral fuera de las zonas ignoradas (`MotionMask`) y decide `Still`, `Changed`, `Motion` (área mínima
   durante N fotos seguidas) o `LightChange` (casi toda la imagen). Sus valores (`MotionSettings`) son de partida.
+- Juez (DECISIONS 027): `MotionJudge` en `VigiaHud.Core.Judge` pasa una grabación por el detector como el móvil y la
+  cruza con sus etiquetas: avisos (con cooldown), tramos detectados (con margen de adelanto y de cola) y falsas
+  alarmas. `juzgar` en la consola saca la tabla de todas las grabaciones etiquetadas, con los valores que se le den
+  (`--umbral`, `--area`, `--seguidos`, `--referencia fondo`, `--cada 2`, `--cooldown`, `--adelanto`…).
 
 ### Qué falta
 
@@ -69,7 +73,7 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
     `tele` y `luz-lampara`: la cámara no verá una tele y no hay lámpara.
 - [ ] Paso 3 — Detector y juez en el PC:
   - [x] 3.1 El detector en Core (2026-11-07).
-  - [ ] 3.2 El juez (avisos, cooldown, aciertos y fallos) y `juzgar`; primera tabla.
+  - [x] 3.2 El juez (avisos, cooldown, aciertos y fallos) y `juzgar`; primera tabla (2026-11-07).
   - [ ] 3.3 `barrer` y la elección de los valores con el autor; antes, `casa-vacia`.
   - Pregunta abierta: ¿hacen falta máscaras? Se decide con los números del juez: si las falsas alarmas salen de una
     zona fija, sí; si son sombras repartidas o luz, se propondrá quitarlas del plan y dejarlo a la fase 4.
@@ -121,6 +125,26 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   máscara sobre cualquier tamaño. Con los valores de partida sobre las ocho grabaciones (solo números, un carácter por
   segundo): `vacia-1` nada; movimiento en todas las pasadas de día, empezando 2-3 s antes por la sombra; movimiento
   falso en `cortina` y en los encendidos de `luz-techo`; casi nada en `persona-poca-luz`. `dotnet test` 373 tests.
+- Paso 3.2: 13 tests nuevos en `MotionJudgeTests` (películas inventadas de una foto por segundo con un cuadrado que
+  cruza): casa quieta sin nada; persona detectada al segundo de entrar; persona que no se mueve, perdida; movimiento
+  sin nadie, falsa alarma; movimiento 2 s antes cuenta para el tramo y 8 s antes es falsa alarma; segunda visita
+  dentro del cooldown detectada sin aviso y fuera de él con aviso nuevo; movimiento falso dentro del cooldown no
+  cuenta; dos visitas seguidas no comparten movimiento (lo cazó la primera tabla real); una foto cada 2 s; hueco de la
+  cámara; zona ignorada. `dotnet test` 386 tests.
+
+  Primera tabla (`juzgar` con los valores de partida, cooldown 2 min y adelanto 5 s; 8 grabaciones, 8 min):
+
+  | Grabación | Con persona | Detectadas | Perdidas | Falsas alarmas | Primer movimiento (s desde que se le ve) |
+  |---|---|---|---|---|---|
+  | vacia-1 | 0 | 0 | 0 | 0 | |
+  | persona-cruza | 3 | 3 | 0 | 0 | −1, 0, −3 |
+  | persona-quieta | 1 | 1 | 0 | 0 | −1 |
+  | persona-lenta | 1 | 1 | 0 | 1 | −4 |
+  | persona-hacia | 1 | 1 | 0 | 0 | −2 |
+  | cortina | 0 | 0 | 0 | 1 | |
+  | luz-techo | 0 | 0 | 0 | 1 | |
+  | persona-poca-luz | 7 | 0 | 7 | 0 | todas perdidas |
+  | **Total** | 13 | 6 | 7 | 3 (22,5 por hora) | |
 
 ## Por ver de las fases cerradas
 
