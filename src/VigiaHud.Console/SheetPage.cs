@@ -11,7 +11,7 @@ namespace VigiaHud.Console;
 /// from the previous tap; runs of marked photos become the lines of the labels file, ready to copy. What is amber is
 /// what gets saved (the first version, a tap to start and a tap to end, was read as one tap per photo and left photos
 /// out; 2026-11-04). Photos come as the sensor gives them, so they are turned for a phone standing upright, with a
-/// button for any other way it stood.
+/// button for any other way it stood, and another to brighten dark ones on screen.
 /// </summary>
 public static class SheetPage
 {
@@ -45,11 +45,12 @@ public static class SheetPage
             textarea { width: 100%; max-width: 520px; height: 5.5em; background: var(--bg); color: var(--text);
                        border: 1px solid #22323E; border-radius: 6px; font: 13px ui-monospace, Consolas, monospace; }
             main { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w), 1fr)); gap: 6px; padding: 16px; }
-            body { --w: 160px; --h: 120px; --turn: 0deg; }
+            body { --w: 160px; --h: 120px; --turn: 0deg; --light: none; }
             body.side { --w: 120px; --h: 160px; }
             figure { margin: 0; cursor: pointer; }
             .frame { position: relative; width: var(--w); height: var(--h); overflow: hidden; border: 2px solid transparent; border-radius: 4px; }
-            .frame img { position: absolute; left: 50%; top: 50%; width: 160px; height: 120px; transform: translate(-50%, -50%) rotate(var(--turn)); }
+            .frame img { position: absolute; left: 50%; top: 50%; width: 160px; height: 120px; transform: translate(-50%, -50%) rotate(var(--turn));
+                         filter: var(--light); }
             figcaption { font: 12px ui-monospace, Consolas, monospace; color: var(--dim); padding: 2px 0; }
             figure.person .frame { border-color: var(--marker); }
             figure.person figcaption { color: var(--marker); }
@@ -63,6 +64,7 @@ public static class SheetPage
                 <span>Toca cada foto en la que se vea a alguien, aunque sea a medias o movido; otro toque la desmarca.
                   Con Mayúsculas pulsada se marcan todas desde el toque anterior.</span>
                 <button id="turn" type="button">Girar</button>
+                <button id="light" type="button" title="Solo en pantalla: la grabación no cambia">Aclarar</button>
               </div>
               <div class="row" id="chips"></div>
               <div class="row">
@@ -176,6 +178,15 @@ public static class SheetPage
               document.body.classList.toggle("side", turn % 180 !== 0);
             }
             document.getElementById("turn").onclick = () => { turn = (turn + 90) % 360; applyTurn(); };
+            // Night photos average 20 of 255 (persona-poca-luz, 2026-11-07): brighter on screen only, to see who is there.
+            const lights = [1, 3, 6];
+            let light = 0;
+            document.getElementById("light").onclick = () => {
+              light = (light + 1) % lights.length;
+              const k = lights[light];
+              document.body.style.setProperty("--light", k === 1 ? "none" : `brightness(${k}) contrast(1.2)`);
+              document.getElementById("light").textContent = k === 1 ? "Aclarar" : `Aclarar ×${k}`;
+            };
             document.getElementById("copy").onclick = async () => {
               const box = document.getElementById("labels");
               try { await navigator.clipboard.writeText(box.value); }
