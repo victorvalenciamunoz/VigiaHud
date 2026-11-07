@@ -439,3 +439,24 @@ Formato: contexto → decisión → alternativas descartadas.
   dentro de la cabecera de la grabación (descartado: habría que reescribir un fichero de 1 GB para corregir una
   etiqueta, y la huella cambiaría); una herramienta de etiquetado de escritorio o un paquete de HTML (descartado: una
   página con 60 líneas de JavaScript basta).
+
+## 026 — El detector de movimiento: restar, descontar la luz, umbral, área y fotos seguidas
+- Contexto: paso 3.1 de la fase 3. `PLAN.md` pide "diferencia entre frames (escala de grises, reducción, umbral, área
+  mínima)". Lo explicado al autor antes de empezar (2026-11-04): restar a la foto anterior o a un fondo, el grano, la
+  luz que cambia toda la imagen y el tiempo entre fotos. Las grabaciones del lote 1 enseñaron dos cosas más: encender
+  la luz del techo cambia del 25 al 47 % de la imagen y la exposición de la cámara deja fotos sueltas casi negras o
+  casi blancas (`luz-techo`), y con poca luz el brillo medio es 20 de 255 (`persona-poca-luz`).
+- Decisión: `MotionDetector` en Core, el mismo para el móvil y para el juez del PC, sin paquetes. Por cada foto gris
+  (160×120): la encoge otra vez (`ReduceFactor`, 2: 80×60); la compara con la anterior o, como opción, con un fondo que
+  aprende despacio (`MotionReference`, `BackgroundRate`); le quita el cambio general de brillo, que es la **mediana**
+  de las diferencias (una persona que tapa parte de la imagen no la arrastra, como haría la media); cuenta los píxeles
+  vigilados que cambian más que `Threshold`; si la parte cambiada pasa `LightChangeArea` es la luz y se ignora (y el
+  fondo se aprende de nuevo); si pasa `MinArea` durante `Consecutive` fotos seguidas, hay movimiento. Las zonas
+  ignoradas son una rejilla (`MotionMask`) que vale para cualquier tamaño de foto; si hay máscaras o no, se decide con
+  los números del juez. Los valores por defecto (umbral 20, área 1 %, luz 60 %, 2 fotos seguidas) son solo el punto de
+  partida: los elige el autor en el paso 3.3 con las tablas de `barrer`.
+- Alternativas: la media en vez de la mediana para el brillo (descartada: una persona oscura que entra la desplaza);
+  normalizar cada foto por su brillo medio (descartada por ahora: la exposición cambia más en unas zonas que en
+  otras y la mediana ya cubre el caso parejo; se valorará si `barrer` lo pide); un umbral proporcional al brillo para
+  la poca luz (se probará en el paso 3.3 si las grabaciones oscuras lo piden); detectores de bordes o de flujo
+  óptico (descartados: más cálculo en un móvil viejo para un problema que la fase 4 resolverá con un modelo).
