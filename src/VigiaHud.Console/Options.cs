@@ -93,6 +93,33 @@ public sealed class Options
             : throw new UsageException($"--{name} {text}: tiene que ser un número entero mayor que cero.");
     }
 
+    /// <summary>A number that may have decimals, written with a comma or a point (<c>0,5</c> or <c>0.5</c>).</summary>
+    public double? Decimal(string name)
+    {
+        if (!_named.TryGetValue(name, out var text))
+        {
+            return null;
+        }
+
+        return double.TryParse(text.Replace(',', '.'), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value) && value > 0
+            ? value
+            : throw new UsageException($"--{name} {text}: tiene que ser un número mayor que cero.");
+    }
+
+    /// <summary>One of <paramref name="allowed"/>, lowercased; null if not given.</summary>
+    public string? Choice(string name, params string[] allowed)
+    {
+        if (!_named.TryGetValue(name, out var text))
+        {
+            return null;
+        }
+
+        var value = text.ToLowerInvariant();
+        return allowed.Contains(value)
+            ? value
+            : throw new UsageException($"--{name} {text}: tiene que ser {string.Join(" o ", allowed)}.");
+    }
+
     /// <summary>The recordings in <see cref="Folder"/>, oldest first (their names start with the UTC instant).</summary>
     public IReadOnlyList<string> Recordings()
     {

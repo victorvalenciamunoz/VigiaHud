@@ -46,8 +46,17 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   - `hoja <grabación>`: una página junto a la grabación, con las fotos dentro, para mirarlas y etiquetarlas tocando
     cada foto con alguien (con Mayúsculas, todas desde el toque anterior); las marcadas seguidas son un tramo y COPIAR
     da las líneas del `.txt`. Lo ya etiquetado que la hoja no enseña se conserva. Como mucho 600 fotos repartidas;
-    `--desde`, `--hasta` y `--cada N` para un rato concreto. Cuenta como persona cualquier parte del cuerpo.
+    `--desde`, `--hasta` y `--cada N` para un rato concreto. Cuenta como persona cualquier parte del cuerpo. ACLARAR
+    sube el brillo de las miniaturas (×3, ×6) para ver las grabaciones oscuras.
 - `docs/secuencias.md`: cómo se graba y se etiqueta, las escenas del lote 1 y la lista de grabaciones.
+- Detector (DECISIONS 026): `MotionDetector` en `VigiaHud.Core.Motion` encoge cada foto gris a 80×60, la compara con la
+  anterior o con un fondo que aprende despacio, descuenta la mediana del cambio de brillo, cuenta los píxeles que
+  pasan el umbral fuera de las zonas ignoradas (`MotionMask`) y decide `Still`, `Changed`, `Motion` (área mínima
+  durante N fotos seguidas) o `LightChange` (casi toda la imagen). Sus valores (`MotionSettings`) son de partida.
+- Juez (DECISIONS 027): `MotionJudge` en `VigiaHud.Core.Judge` pasa una grabación por el detector como el móvil y la
+  cruza con sus etiquetas: avisos (con cooldown), tramos detectados (con margen de adelanto y de cola) y falsas
+  alarmas. `juzgar` en la consola saca la tabla de todas las grabaciones etiquetadas, con los valores que se le den
+  (`--umbral`, `--area`, `--seguidos`, `--referencia fondo`, `--cada 2`, `--cooldown`, `--adelanto`…).
 
 ### Qué falta
 
@@ -58,8 +67,16 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
     prueba de 1 min con su tamaño y su CPU.
 - [ ] Paso 2 — Mirar y etiquetar las grabaciones:
   - [x] La consola con `info` y `hoja`, y el formato de las etiquetas (2026-11-04).
-  - [ ] El autor graba y etiqueta el lote 1 (`docs/secuencias.md`).
-- [ ] Paso 3 — Detector y juez en el PC (`juzgar`, `barrer`); primera tabla y elección de umbrales.
+  - [ ] El autor graba y etiqueta el lote 1 (`docs/secuencias.md`). Hechas y etiquetadas: `vacia-1`, `persona-cruza`,
+    `persona-quieta`, `persona-lenta`, `persona-hacia`, `cortina`, `luz-techo` y `persona-poca-luz`. Faltan
+    `persona-lejos`, `persona-noche`, `sol` y `casa-vacia` (con el móvil enchufado); `tele-reflejo`, opcional. Fuera
+    `tele` y `luz-lampara`: la cámara no verá una tele y no hay lámpara.
+- [ ] Paso 3 — Detector y juez en el PC:
+  - [x] 3.1 El detector en Core (2026-11-07).
+  - [x] 3.2 El juez (avisos, cooldown, aciertos y fallos) y `juzgar`; primera tabla (2026-11-07).
+  - [ ] 3.3 `barrer` y la elección de los valores con el autor; antes, `casa-vacia`.
+  - Pregunta abierta: ¿hacen falta máscaras? Se decide con los números del juez: si las falsas alarmas salen de una
+    zona fija, sí; si son sombras repartidas o luz, se propondrá quitarlas del plan y dejarlo a la fase 4.
 - [ ] Paso 4 — Detector en el móvil: solo registro, foto guardada y recuento en el latido. CPU y batería antes y
   después (como mucho 5,8 %/h y la app por debajo del 25 % de un núcleo).
 - [ ] Paso 5 — Editor de máscaras (el dibujo se confirma con el autor antes de programarlo).
@@ -97,7 +114,37 @@ Las fases 1 (que sobreviva) y 2 (Telegram) están cerradas; su historia completa
   `00:19-00:20` y `00:23-00:24` en `00:19-00:24`; desmarcar una foto parte el tramo; Mayúsculas marca todo el rato; y
   una hoja de un rato o de una foto cada 10 s conserva lo que no enseña. Las
   páginas no se miraron desde aquí: llevan las fotos de la casa. `dotnet build` de la solución con 0 avisos;
-  `dotnet test` 350 tests, cinco pasadas seguidas.
+  `dotnet test` 350 tests, cinco pasadas seguidas. ACLARAR (2026-11-07): con un DOM simulado pasa por ×3, ×6 y normal.
+- Paso 3.1: 23 tests nuevos en `MotionDetectorTests`, con fotos inventadas (una pared con grano y un cuadrado oscuro
+  del 2 % de la imagen): el grano no es movimiento; el cuadrado que se mueve lo es a la segunda foto, o a la primera
+  si se pide; un cambio que se para reinicia la cuenta; menos del área mínima no cuenta; la habitación 40 niveles más
+  clara no es movimiento y el cuadrado se sigue viendo mientras se aclara; una foto que cambia entera es luz y
+  reinicia la cuenta; lo que pasa en una zona ignorada no se ve, y la parte vigilada cuenta sobre su propia área;
+  contra la foto anterior una persona quieta desaparece y contra el fondo se sigue viendo hasta que el fondo la
+  absorbe; tras la luz el fondo se aprende de nuevo; `Reset`; sin encoger; valores fuera de rango; la rejilla de la
+  máscara sobre cualquier tamaño. Con los valores de partida sobre las ocho grabaciones (solo números, un carácter por
+  segundo): `vacia-1` nada; movimiento en todas las pasadas de día, empezando 2-3 s antes por la sombra; movimiento
+  falso en `cortina` y en los encendidos de `luz-techo`; casi nada en `persona-poca-luz`. `dotnet test` 373 tests.
+- Paso 3.2: 13 tests nuevos en `MotionJudgeTests` (películas inventadas de una foto por segundo con un cuadrado que
+  cruza): casa quieta sin nada; persona detectada al segundo de entrar; persona que no se mueve, perdida; movimiento
+  sin nadie, falsa alarma; movimiento 2 s antes cuenta para el tramo y 8 s antes es falsa alarma; segunda visita
+  dentro del cooldown detectada sin aviso y fuera de él con aviso nuevo; movimiento falso dentro del cooldown no
+  cuenta; dos visitas seguidas no comparten movimiento (lo cazó la primera tabla real); una foto cada 2 s; hueco de la
+  cámara; zona ignorada. `dotnet test` 386 tests.
+
+  Primera tabla (`juzgar` con los valores de partida, cooldown 2 min y adelanto 5 s; 8 grabaciones, 8 min):
+
+  | Grabación | Con persona | Detectadas | Perdidas | Falsas alarmas | Primer movimiento (s desde que se le ve) |
+  |---|---|---|---|---|---|
+  | vacia-1 | 0 | 0 | 0 | 0 | |
+  | persona-cruza | 3 | 3 | 0 | 0 | −1, 0, −3 |
+  | persona-quieta | 1 | 1 | 0 | 0 | −1 |
+  | persona-lenta | 1 | 1 | 0 | 1 | −4 |
+  | persona-hacia | 1 | 1 | 0 | 0 | −2 |
+  | cortina | 0 | 0 | 0 | 1 | |
+  | luz-techo | 0 | 0 | 0 | 1 | |
+  | persona-poca-luz | 7 | 0 | 7 | 0 | todas perdidas |
+  | **Total** | 13 | 6 | 7 | 3 (22,5 por hora) | |
 
 ## Por ver de las fases cerradas
 
